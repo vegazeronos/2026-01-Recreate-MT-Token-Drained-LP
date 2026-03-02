@@ -15,3 +15,4 @@ foundry.toml
 
 # Dotenv file
 .env
+.DS_Store

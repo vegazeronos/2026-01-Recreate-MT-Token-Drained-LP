@@ -6,9 +6,9 @@ import "forge-std/Test.sol";
 import "./interface.sol";
 
 /**
- * @Author: @haveashib
+ * ##Author: @haveashib
  * 
- * @KeyInfo - Total Lost : ~999M US$
+ * ##KeyInfo - Total Lost : ~999M US$
  * Attacker : 0xcafebabe
  * Attack Contract : 0xdeadbeef
  * Vulnerable Contract : 0xdeadbeef
@@ -19,7 +19,7 @@ import "./interface.sol";
  * 
  * Root Cause : 
  * 
- * @Analysis
+ * ##Analysis
  * Post-mortem : https://www.google.com/
  * Twitter Guy : https://www.google.com/
  */
