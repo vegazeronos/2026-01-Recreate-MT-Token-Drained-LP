@@ -1,0 +1,2958 @@
+/**
+ *Submitted for verification at BscScan.com on 2026-02-27
+*/
+
+/**
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║  // ================== BUBU2.7 CONTRACT FLY ============           ║
+║                                                                  ║
+║    .oOOo.  U    U  .oOOo.  U    U  222                           ║
+║    °    °  U    U  °    °  U    U     2                          ║
+║    ° °° °  U    U  ° °° °  U    U    2                           ║
+║    °    °  U    U  °    °  U    U   2                            ║
+║    `OooO'  'OooO'  `OooO'  'OooO'  22222                         ║
+║                                                                  ║
+║  // ================== BUBU2.7 CONTRACT FLY ====================   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝ 
+ */
+// File: @openzeppelin/contracts/token/ERC20/IERC20.sol
+// OpenZeppelin Contracts (last updated v5.1.0) (token/ERC20/IERC20.sol)
+pragma solidity ^0.8.24;
+
+interface IBUBU2NFT {
+    function giftNFT(address to) external;
+    function batchGiftNFT(address[] calldata recipients) external;
+    function isContractWhitelisted(address contractAddress) external view returns (bool);
+    function getAvailableNFTCount() external view returns (uint256);
+    function balanceOf(address owner) external view returns (uint256);
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
+/**
+ * @dev Interface of the ERC-20 standard as defined in the ERC.
+ */
+interface IERC20 {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+   
+    function totalSupply() external view returns (uint256);
+   
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
+pragma solidity ^0.8.20;
+
+interface IERC20Metadata is IERC20 {
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() external view returns (string memory);
+
+    /**
+     * @dev Returns the symbol of the token.
+     */
+    function symbol() external view returns (string memory);
+    /**
+     * @dev Returns the decimals places of the token.
+     */
+    function decimals() external view returns (uint8);
+}
+// File: @openzeppelin/contracts/utils/Context.sol
+// OpenZeppelin Contracts (last updated v5.0.1) (utils/Context.sol)
+pragma solidity ^0.8.24;
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+
+    function _contextSuffixLength() internal view virtual returns (uint256) {
+        return 0;
+    }
+}
+
+pragma solidity ^0.8.20;
+
+interface IERC20Errors {
+    
+    error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+
+    error ERC20InvalidSender(address sender);
+
+    error ERC20InvalidReceiver(address receiver);
+
+    error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
+
+    error ERC20InvalidApprover(address approver);
+
+    error ERC20InvalidSpender(address spender);
+}
+
+interface IERC721Errors {
+    
+    error ERC721InvalidOwner(address owner);
+
+    error ERC721NonexistentToken(uint256 tokenId);
+
+    error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner);
+
+    error ERC721InvalidSender(address sender);
+
+    error ERC721InvalidReceiver(address receiver);
+
+    error ERC721InsufficientApproval(address operator, uint256 tokenId);
+
+    error ERC721InvalidApprover(address approver);
+
+    error ERC721InvalidOperator(address operator);
+}
+
+interface IERC1155Errors {
+    
+    error ERC1155InsufficientBalance(address sender, uint256 balance, uint256 needed, uint256 tokenId);
+
+    error ERC1155InvalidSender(address sender);
+
+    error ERC1155InvalidReceiver(address receiver);
+
+    error ERC1155MissingApprovalForAll(address operator, address owner);
+
+    error ERC1155InvalidApprover(address approver);
+
+    error ERC1155InvalidOperator(address operator);
+
+    
+    error ERC1155InvalidArrayLength(uint256 idsLength, uint256 valuesLength);
+}
+
+
+pragma solidity ^0.8.20;
+
+
+
+
+
+
+abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
+    mapping(address account => uint256) private _balances;
+
+    mapping(address account => mapping(address spender => uint256)) private _allowances;
+
+    uint256 private _totalSupply;
+
+    string private _name;
+    string private _symbol;
+
+    constructor(string memory name_, string memory symbol_) {
+        _name = name_;
+        _symbol = symbol_;
+    }
+
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    
+    function decimals() public view virtual returns (uint8) {
+        return 18;
+    }
+
+    function totalSupply() public view virtual returns (uint256) {
+        return _totalSupply;
+    }
+
+    function balanceOf(address account) public view virtual returns (uint256) {
+        return _balances[account];
+    }
+
+    function transfer(address to, uint256 value) public virtual returns (bool) {
+        address owner = _msgSender();
+        _transfer(owner, to, value);
+        return true;
+    }
+
+    function allowance(address owner, address spender) public view virtual returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    
+    function approve(address spender, uint256 value) public virtual returns (bool) {
+        address owner = _msgSender();
+        _approve(owner, spender, value);
+        return true;
+    }
+
+    
+    function transferFrom(address from, address to, uint256 value) public virtual returns (bool) {
+        address spender = _msgSender();
+        _spendAllowance(from, spender, value);
+        _transfer(from, to, value);
+        return true;
+    }
+
+    
+    function _transfer(address from, address to, uint256 value) internal {
+        if (from == address(0)) {
+            revert ERC20InvalidSender(address(0));
+        }
+        if (to == address(0)) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+        _update(from, to, value);
+    }
+
+    function _update(address from, address to, uint256 value) internal virtual {
+        if (from == address(0)) {
+            // Overflow check required: The rest of the code assumes that totalSupply never overflows
+            _totalSupply += value;
+        } else {
+            uint256 fromBalance = _balances[from];
+            if (fromBalance < value) {
+                revert ERC20InsufficientBalance(from, fromBalance, value);
+            }
+            unchecked {
+                // Overflow not possible: value <= fromBalance <= totalSupply.
+                _balances[from] = fromBalance - value;
+            }
+        }
+
+        if (to == address(0)) {
+            unchecked {
+                // Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply.
+                _totalSupply -= value;
+            }
+        } else {
+            unchecked {
+                // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
+                _balances[to] += value;
+            }
+        }
+
+        emit Transfer(from, to, value);
+    }
+
+    function _mint(address account, uint256 value) internal {
+        if (account == address(0)) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+        _update(address(0), account, value);
+    }
+
+    
+    function _burn(address account, uint256 value) internal {
+        if (account == address(0)) {
+            revert ERC20InvalidSender(address(0));
+        }
+        _update(account, address(0), value);
+    }
+
+    
+    function _approve(address owner, address spender, uint256 value) internal {
+        _approve(owner, spender, value, true);
+    }
+
+    
+    function _approve(address owner, address spender, uint256 value, bool emitEvent) internal virtual {
+        if (owner == address(0)) {
+            revert ERC20InvalidApprover(address(0));
+        }
+        if (spender == address(0)) {
+            revert ERC20InvalidSpender(address(0));
+        }
+        _allowances[owner][spender] = value;
+        if (emitEvent) {
+            emit Approval(owner, spender, value);
+        }
+    }
+
+
+    function _spendAllowance(address owner, address spender, uint256 value) internal virtual {
+        uint256 currentAllowance = allowance(owner, spender);
+        if (currentAllowance < type(uint256).max) {
+            if (currentAllowance < value) {
+                revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+            }
+            unchecked {
+                _approve(owner, spender, currentAllowance - value, false);
+            }
+        }
+    }
+}
+
+pragma solidity ^0.8.20;
+
+
+abstract contract Ownable is Context {
+    address private _owner;
+
+    error OwnableUnauthorizedAccount(address account);
+
+    error OwnableInvalidOwner(address owner);
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor(address initialOwner) {
+        if (initialOwner == address(0)) {
+            revert OwnableInvalidOwner(address(0));
+        }
+        _transferOwnership(initialOwner);
+    }
+
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    function _checkOwner() internal view virtual {
+        if (owner() != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
+    }
+
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        if (newOwner == address(0)) {
+            revert OwnableInvalidOwner(address(0));
+        }
+        _transferOwnership(newOwner);
+    }
+
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+pragma solidity ^0.8.20;
+
+
+// slither-disable-next-line unused-state
+library Panic {
+    /// @dev generic / unspecified error
+    uint256 internal constant GENERIC = 0x00;
+    /// @dev used by the assert() builtin
+    uint256 internal constant ASSERT = 0x01;
+    /// @dev arithmetic underflow or overflow
+    uint256 internal constant UNDER_OVERFLOW = 0x11;
+    /// @dev division or modulo by zero
+    uint256 internal constant DIVISION_BY_ZERO = 0x12;
+    /// @dev enum conversion error
+    uint256 internal constant ENUM_CONVERSION_ERROR = 0x21;
+    /// @dev invalid encoding in storage
+    uint256 internal constant STORAGE_ENCODING_ERROR = 0x22;
+    /// @dev empty array pop
+    uint256 internal constant EMPTY_ARRAY_POP = 0x31;
+    /// @dev array out of bounds access
+    uint256 internal constant ARRAY_OUT_OF_BOUNDS = 0x32;
+    /// @dev resource error (too large allocation or too large array)
+    uint256 internal constant RESOURCE_ERROR = 0x41;
+    /// @dev calling invalid internal function
+    uint256 internal constant INVALID_INTERNAL_FUNCTION = 0x51;
+
+    /// @dev Reverts with a panic code. Recommended to use with
+    /// the internal constants with predefined codes.
+    function panic(uint256 code) internal pure {
+        assembly ("memory-safe") {
+            mstore(0x00, 0x4e487b71)
+            mstore(0x20, code)
+            revert(0x1c, 0x24)
+        }
+    }
+}
+
+pragma solidity ^0.8.20;
+
+
+library SafeCast {
+
+    error SafeCastOverflowedUintDowncast(uint8 bits, uint256 value);
+
+ 
+    error SafeCastOverflowedIntToUint(int256 value);
+
+ 
+    error SafeCastOverflowedIntDowncast(uint8 bits, int256 value);
+
+ 
+    error SafeCastOverflowedUintToInt(uint256 value);
+
+
+    function toUint248(uint256 value) internal pure returns (uint248) {
+        if (value > type(uint248).max) {
+            revert SafeCastOverflowedUintDowncast(248, value);
+        }
+        return uint248(value);
+    }
+
+
+    function toUint240(uint256 value) internal pure returns (uint240) {
+        if (value > type(uint240).max) {
+            revert SafeCastOverflowedUintDowncast(240, value);
+        }
+        return uint240(value);
+    }
+
+   
+    function toUint232(uint256 value) internal pure returns (uint232) {
+        if (value > type(uint232).max) {
+            revert SafeCastOverflowedUintDowncast(232, value);
+        }
+        return uint232(value);
+    }
+
+   
+    function toUint224(uint256 value) internal pure returns (uint224) {
+        if (value > type(uint224).max) {
+            revert SafeCastOverflowedUintDowncast(224, value);
+        }
+        return uint224(value);
+    }
+
+    
+    function toUint216(uint256 value) internal pure returns (uint216) {
+        if (value > type(uint216).max) {
+            revert SafeCastOverflowedUintDowncast(216, value);
+        }
+        return uint216(value);
+    }
+
+   
+    function toUint208(uint256 value) internal pure returns (uint208) {
+        if (value > type(uint208).max) {
+            revert SafeCastOverflowedUintDowncast(208, value);
+        }
+        return uint208(value);
+    }
+
+    
+    function toUint200(uint256 value) internal pure returns (uint200) {
+        if (value > type(uint200).max) {
+            revert SafeCastOverflowedUintDowncast(200, value);
+        }
+        return uint200(value);
+    }
+
+    
+    function toUint192(uint256 value) internal pure returns (uint192) {
+        if (value > type(uint192).max) {
+            revert SafeCastOverflowedUintDowncast(192, value);
+        }
+        return uint192(value);
+    }
+
+    
+    function toUint184(uint256 value) internal pure returns (uint184) {
+        if (value > type(uint184).max) {
+            revert SafeCastOverflowedUintDowncast(184, value);
+        }
+        return uint184(value);
+    }
+
+    
+    function toUint176(uint256 value) internal pure returns (uint176) {
+        if (value > type(uint176).max) {
+            revert SafeCastOverflowedUintDowncast(176, value);
+        }
+        return uint176(value);
+    }
+
+   
+    function toUint168(uint256 value) internal pure returns (uint168) {
+        if (value > type(uint168).max) {
+            revert SafeCastOverflowedUintDowncast(168, value);
+        }
+        return uint168(value);
+    }
+
+    
+    function toUint160(uint256 value) internal pure returns (uint160) {
+        if (value > type(uint160).max) {
+            revert SafeCastOverflowedUintDowncast(160, value);
+        }
+        return uint160(value);
+    }
+
+   
+    function toUint152(uint256 value) internal pure returns (uint152) {
+        if (value > type(uint152).max) {
+            revert SafeCastOverflowedUintDowncast(152, value);
+        }
+        return uint152(value);
+    }
+
+   
+    function toUint144(uint256 value) internal pure returns (uint144) {
+        if (value > type(uint144).max) {
+            revert SafeCastOverflowedUintDowncast(144, value);
+        }
+        return uint144(value);
+    }
+
+    
+    function toUint136(uint256 value) internal pure returns (uint136) {
+        if (value > type(uint136).max) {
+            revert SafeCastOverflowedUintDowncast(136, value);
+        }
+        return uint136(value);
+    }
+
+    
+    function toUint128(uint256 value) internal pure returns (uint128) {
+        if (value > type(uint128).max) {
+            revert SafeCastOverflowedUintDowncast(128, value);
+        }
+        return uint128(value);
+    }
+
+    
+    function toUint120(uint256 value) internal pure returns (uint120) {
+        if (value > type(uint120).max) {
+            revert SafeCastOverflowedUintDowncast(120, value);
+        }
+        return uint120(value);
+    }
+
+    
+    function toUint112(uint256 value) internal pure returns (uint112) {
+        if (value > type(uint112).max) {
+            revert SafeCastOverflowedUintDowncast(112, value);
+        }
+        return uint112(value);
+    }
+
+    
+    function toUint104(uint256 value) internal pure returns (uint104) {
+        if (value > type(uint104).max) {
+            revert SafeCastOverflowedUintDowncast(104, value);
+        }
+        return uint104(value);
+    }
+
+    
+    function toUint96(uint256 value) internal pure returns (uint96) {
+        if (value > type(uint96).max) {
+            revert SafeCastOverflowedUintDowncast(96, value);
+        }
+        return uint96(value);
+    }
+
+    
+    function toUint88(uint256 value) internal pure returns (uint88) {
+        if (value > type(uint88).max) {
+            revert SafeCastOverflowedUintDowncast(88, value);
+        }
+        return uint88(value);
+    }
+
+   
+    function toUint80(uint256 value) internal pure returns (uint80) {
+        if (value > type(uint80).max) {
+            revert SafeCastOverflowedUintDowncast(80, value);
+        }
+        return uint80(value);
+    }
+
+    
+    function toUint72(uint256 value) internal pure returns (uint72) {
+        if (value > type(uint72).max) {
+            revert SafeCastOverflowedUintDowncast(72, value);
+        }
+        return uint72(value);
+    }
+
+    
+    function toUint64(uint256 value) internal pure returns (uint64) {
+        if (value > type(uint64).max) {
+            revert SafeCastOverflowedUintDowncast(64, value);
+        }
+        return uint64(value);
+    }
+
+   
+    function toUint56(uint256 value) internal pure returns (uint56) {
+        if (value > type(uint56).max) {
+            revert SafeCastOverflowedUintDowncast(56, value);
+        }
+        return uint56(value);
+    }
+
+    
+    function toUint48(uint256 value) internal pure returns (uint48) {
+        if (value > type(uint48).max) {
+            revert SafeCastOverflowedUintDowncast(48, value);
+        }
+        return uint48(value);
+    }
+
+    
+    function toUint40(uint256 value) internal pure returns (uint40) {
+        if (value > type(uint40).max) {
+            revert SafeCastOverflowedUintDowncast(40, value);
+        }
+        return uint40(value);
+    }
+
+    
+    function toUint32(uint256 value) internal pure returns (uint32) {
+        if (value > type(uint32).max) {
+            revert SafeCastOverflowedUintDowncast(32, value);
+        }
+        return uint32(value);
+    }
+
+    
+    function toUint24(uint256 value) internal pure returns (uint24) {
+        if (value > type(uint24).max) {
+            revert SafeCastOverflowedUintDowncast(24, value);
+        }
+        return uint24(value);
+    }
+
+    
+    function toUint16(uint256 value) internal pure returns (uint16) {
+        if (value > type(uint16).max) {
+            revert SafeCastOverflowedUintDowncast(16, value);
+        }
+        return uint16(value);
+    }
+
+    
+    function toUint8(uint256 value) internal pure returns (uint8) {
+        if (value > type(uint8).max) {
+            revert SafeCastOverflowedUintDowncast(8, value);
+        }
+        return uint8(value);
+    }
+
+   
+    function toUint256(int256 value) internal pure returns (uint256) {
+        if (value < 0) {
+            revert SafeCastOverflowedIntToUint(value);
+        }
+        return uint256(value);
+    }
+
+  
+    function toInt248(int256 value) internal pure returns (int248 downcasted) {
+        downcasted = int248(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(248, value);
+        }
+    }
+
+   
+    function toInt240(int256 value) internal pure returns (int240 downcasted) {
+        downcasted = int240(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(240, value);
+        }
+    }
+
+   
+    function toInt232(int256 value) internal pure returns (int232 downcasted) {
+        downcasted = int232(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(232, value);
+        }
+    }
+
+   
+    function toInt224(int256 value) internal pure returns (int224 downcasted) {
+        downcasted = int224(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(224, value);
+        }
+    }
+
+   
+    function toInt216(int256 value) internal pure returns (int216 downcasted) {
+        downcasted = int216(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(216, value);
+        }
+    }
+
+    
+    function toInt208(int256 value) internal pure returns (int208 downcasted) {
+        downcasted = int208(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(208, value);
+        }
+    }
+
+    
+    function toInt200(int256 value) internal pure returns (int200 downcasted) {
+        downcasted = int200(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(200, value);
+        }
+    }
+
+   
+    function toInt192(int256 value) internal pure returns (int192 downcasted) {
+        downcasted = int192(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(192, value);
+        }
+    }
+
+   
+    function toInt184(int256 value) internal pure returns (int184 downcasted) {
+        downcasted = int184(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(184, value);
+        }
+    }
+
+   
+    function toInt176(int256 value) internal pure returns (int176 downcasted) {
+        downcasted = int176(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(176, value);
+        }
+    }
+
+   
+    function toInt168(int256 value) internal pure returns (int168 downcasted) {
+        downcasted = int168(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(168, value);
+        }
+    }
+
+   
+    function toInt160(int256 value) internal pure returns (int160 downcasted) {
+        downcasted = int160(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(160, value);
+        }
+    }
+
+    
+    function toInt152(int256 value) internal pure returns (int152 downcasted) {
+        downcasted = int152(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(152, value);
+        }
+    }
+
+   
+    function toInt144(int256 value) internal pure returns (int144 downcasted) {
+        downcasted = int144(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(144, value);
+        }
+    }
+
+    
+    function toInt136(int256 value) internal pure returns (int136 downcasted) {
+        downcasted = int136(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(136, value);
+        }
+    }
+
+   
+    function toInt128(int256 value) internal pure returns (int128 downcasted) {
+        downcasted = int128(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(128, value);
+        }
+    }
+
+    
+    function toInt120(int256 value) internal pure returns (int120 downcasted) {
+        downcasted = int120(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(120, value);
+        }
+    }
+
+    
+    function toInt112(int256 value) internal pure returns (int112 downcasted) {
+        downcasted = int112(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(112, value);
+        }
+    }
+
+    
+    function toInt104(int256 value) internal pure returns (int104 downcasted) {
+        downcasted = int104(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(104, value);
+        }
+    }
+
+   
+    function toInt96(int256 value) internal pure returns (int96 downcasted) {
+        downcasted = int96(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(96, value);
+        }
+    }
+
+   
+    function toInt88(int256 value) internal pure returns (int88 downcasted) {
+        downcasted = int88(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(88, value);
+        }
+    }
+
+    
+    function toInt80(int256 value) internal pure returns (int80 downcasted) {
+        downcasted = int80(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(80, value);
+        }
+    }
+
+    
+    function toInt72(int256 value) internal pure returns (int72 downcasted) {
+        downcasted = int72(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(72, value);
+        }
+    }
+
+   
+    function toInt64(int256 value) internal pure returns (int64 downcasted) {
+        downcasted = int64(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(64, value);
+        }
+    }
+
+
+    function toInt56(int256 value) internal pure returns (int56 downcasted) {
+        downcasted = int56(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(56, value);
+        }
+    }
+
+
+    function toInt48(int256 value) internal pure returns (int48 downcasted) {
+        downcasted = int48(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(48, value);
+        }
+    }
+
+
+    function toInt40(int256 value) internal pure returns (int40 downcasted) {
+        downcasted = int40(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(40, value);
+        }
+    }
+
+
+    function toInt32(int256 value) internal pure returns (int32 downcasted) {
+        downcasted = int32(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(32, value);
+        }
+    }
+
+ 
+    function toInt24(int256 value) internal pure returns (int24 downcasted) {
+        downcasted = int24(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(24, value);
+        }
+    }
+
+
+    function toInt16(int256 value) internal pure returns (int16 downcasted) {
+        downcasted = int16(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(16, value);
+        }
+    }
+
+
+    function toInt8(int256 value) internal pure returns (int8 downcasted) {
+        downcasted = int8(value);
+        if (downcasted != value) {
+            revert SafeCastOverflowedIntDowncast(8, value);
+        }
+    }
+
+ 
+    function toInt256(uint256 value) internal pure returns (int256) {
+        // Note: Unsafe cast below is okay because `type(int256).max` is guaranteed to be positive
+        if (value > uint256(type(int256).max)) {
+            revert SafeCastOverflowedUintToInt(value);
+        }
+        return int256(value);
+    }
+
+    /**
+     * @dev Cast a boolean (false or true) to a uint256 (0 or 1) with no jump.
+     */
+    function toUint(bool b) internal pure returns (uint256 u) {
+        assembly ("memory-safe") {
+            u := iszero(iszero(b))
+        }
+    }
+}
+library Math {
+    enum Rounding {
+        Floor, // Toward negative infinity
+        Ceil, // Toward positive infinity
+        Trunc, // Toward zero
+        Expand // Away from zero
+    }
+
+   
+    function add512(uint256 a, uint256 b) internal pure returns (uint256 high, uint256 low) {
+        assembly ("memory-safe") {
+            low := add(a, b)
+            high := lt(low, a)
+        }
+    }
+
+    
+    function mul512(uint256 a, uint256 b) internal pure returns (uint256 high, uint256 low) {
+        
+        assembly ("memory-safe") {
+            let mm := mulmod(a, b, not(0))
+            low := mul(a, b)
+            high := sub(sub(mm, low), lt(mm, low))
+        }
+    }
+
+    
+    function tryAdd(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        unchecked {
+            uint256 c = a + b;
+            success = c >= a;
+            result = c * SafeCast.toUint(success);
+        }
+    }
+
+   
+    function trySub(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        unchecked {
+            uint256 c = a - b;
+            success = c <= a;
+            result = c * SafeCast.toUint(success);
+        }
+    }
+
+   
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        unchecked {
+            uint256 c = a * b;
+            assembly ("memory-safe") {
+                // Only true when the multiplication doesn't overflow
+                // (c / a == b) || (a == 0)
+                success := or(eq(div(c, a), b), iszero(a))
+            }
+            // equivalent to: success ? c : 0
+            result = c * SafeCast.toUint(success);
+        }
+    }
+
+   
+    function tryDiv(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        unchecked {
+            success = b > 0;
+            assembly ("memory-safe") {
+                // The `DIV` opcode returns zero when the denominator is 0.
+                result := div(a, b)
+            }
+        }
+    }
+
+   
+    function tryMod(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        unchecked {
+            success = b > 0;
+            assembly ("memory-safe") {
+                // The `MOD` opcode returns zero when the denominator is 0.
+                result := mod(a, b)
+            }
+        }
+    }
+
+   
+    function saturatingAdd(uint256 a, uint256 b) internal pure returns (uint256) {
+        (bool success, uint256 result) = tryAdd(a, b);
+        return ternary(success, result, type(uint256).max);
+    }
+
+    
+    function saturatingSub(uint256 a, uint256 b) internal pure returns (uint256) {
+        (, uint256 result) = trySub(a, b);
+        return result;
+    }
+
+   
+    function saturatingMul(uint256 a, uint256 b) internal pure returns (uint256) {
+        (bool success, uint256 result) = tryMul(a, b);
+        return ternary(success, result, type(uint256).max);
+    }
+
+    
+    function ternary(bool condition, uint256 a, uint256 b) internal pure returns (uint256) {
+        unchecked {
+            
+            return b ^ ((a ^ b) * SafeCast.toUint(condition));
+        }
+    }
+
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return ternary(a > b, a, b);
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return ternary(a < b, a, b);
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow.
+        return (a & b) + (a ^ b) / 2;
+    }
+
+
+    function ceilDiv(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (b == 0) {
+            // Guarantee the same behavior as in a regular Solidity division.
+            Panic.panic(Panic.DIVISION_BY_ZERO);
+        }
+
+       
+        unchecked {
+            return SafeCast.toUint(a > 0) * ((a - 1) / b + 1);
+        }
+    }
+
+    
+    function mulDiv(uint256 x, uint256 y, uint256 denominator) internal pure returns (uint256 result) {
+        unchecked {
+            (uint256 high, uint256 low) = mul512(x, y);
+
+            // Handle non-overflow cases, 256 by 256 division.
+            if (high == 0) {
+                return low / denominator;
+            }
+
+            // Make sure the result is less than 2²⁵⁶. Also prevents denominator == 0.
+            if (denominator <= high) {
+                Panic.panic(ternary(denominator == 0, Panic.DIVISION_BY_ZERO, Panic.UNDER_OVERFLOW));
+            }
+
+            uint256 remainder;
+            assembly ("memory-safe") {
+                // Compute remainder using mulmod.
+                remainder := mulmod(x, y, denominator)
+
+                // Subtract 256 bit number from 512 bit number.
+                high := sub(high, gt(remainder, low))
+                low := sub(low, remainder)
+            }
+
+            
+            uint256 twos = denominator & (0 - denominator);
+            assembly ("memory-safe") {
+                // Divide denominator by twos.
+                denominator := div(denominator, twos)
+
+                // Divide [high low] by twos.
+                low := div(low, twos)
+
+                // Flip twos such that it is 2²⁵⁶ / twos. If twos is zero, then it becomes one.
+                twos := add(div(sub(0, twos), twos), 1)
+            }
+
+            // Shift in bits from high into low.
+            low |= high * twos;
+
+            uint256 inverse = (3 * denominator) ^ 2;
+
+            
+            inverse *= 2 - denominator * inverse; // inverse mod 2⁸
+            inverse *= 2 - denominator * inverse; // inverse mod 2¹⁶
+            inverse *= 2 - denominator * inverse; // inverse mod 2³²
+            inverse *= 2 - denominator * inverse; // inverse mod 2⁶⁴
+            inverse *= 2 - denominator * inverse; // inverse mod 2¹²⁸
+            inverse *= 2 - denominator * inverse; // inverse mod 2²⁵⁶
+
+            result = low * inverse;
+            return result;
+        }
+    }
+
+    
+    function mulDiv(uint256 x, uint256 y, uint256 denominator, Rounding rounding) internal pure returns (uint256) {
+        return mulDiv(x, y, denominator) + SafeCast.toUint(unsignedRoundsUp(rounding) && mulmod(x, y, denominator) > 0);
+    }
+
+    
+    function mulShr(uint256 x, uint256 y, uint8 n) internal pure returns (uint256 result) {
+        unchecked {
+            (uint256 high, uint256 low) = mul512(x, y);
+            if (high >= 1 << n) {
+                Panic.panic(Panic.UNDER_OVERFLOW);
+            }
+            return (high << (256 - n)) | (low >> n);
+        }
+    }
+
+    
+    function mulShr(uint256 x, uint256 y, uint8 n, Rounding rounding) internal pure returns (uint256) {
+        return mulShr(x, y, n) + SafeCast.toUint(unsignedRoundsUp(rounding) && mulmod(x, y, 1 << n) > 0);
+    }
+
+    
+    function invMod(uint256 a, uint256 n) internal pure returns (uint256) {
+        unchecked {
+            if (n == 0) return 0;
+
+            uint256 remainder = a % n;
+            uint256 gcd = n;
+
+           
+            int256 x = 0;
+            int256 y = 1;
+
+            while (remainder != 0) {
+                uint256 quotient = gcd / remainder;
+
+                (gcd, remainder) = (
+                    // The old remainder is the next gcd to try.
+                    remainder,
+                    
+                    gcd - remainder * quotient
+                );
+
+                (x, y) = (
+                    // Increment the coefficient of a.
+                    y,
+                    
+                    x - y * int256(quotient)
+                );
+            }
+
+            if (gcd != 1) return 0; // No inverse exists.
+            return ternary(x < 0, n - uint256(-x), uint256(x)); // Wrap the result if it's negative.
+        }
+    }
+
+    
+    function invModPrime(uint256 a, uint256 p) internal view returns (uint256) {
+        unchecked {
+            return Math.modExp(a, p - 2, p);
+        }
+    }
+
+    
+    function modExp(uint256 b, uint256 e, uint256 m) internal view returns (uint256) {
+        (bool success, uint256 result) = tryModExp(b, e, m);
+        if (!success) {
+            Panic.panic(Panic.DIVISION_BY_ZERO);
+        }
+        return result;
+    }
+
+    
+    function tryModExp(uint256 b, uint256 e, uint256 m) internal view returns (bool success, uint256 result) {
+        if (m == 0) return (false, 0);
+        assembly ("memory-safe") {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x20)
+            mstore(add(ptr, 0x20), 0x20)
+            mstore(add(ptr, 0x40), 0x20)
+            mstore(add(ptr, 0x60), b)
+            mstore(add(ptr, 0x80), e)
+            mstore(add(ptr, 0xa0), m)
+
+            // Given the result < m, it's guaranteed to fit in 32 bytes,
+            // so we can use the memory scratch space located at offset 0.
+            success := staticcall(gas(), 0x05, ptr, 0xc0, 0x00, 0x20)
+            result := mload(0x00)
+        }
+    }
+
+    /**
+     * @dev Variant of {modExp} that supports inputs of arbitrary length.
+     */
+    function modExp(bytes memory b, bytes memory e, bytes memory m) internal view returns (bytes memory) {
+        (bool success, bytes memory result) = tryModExp(b, e, m);
+        if (!success) {
+            Panic.panic(Panic.DIVISION_BY_ZERO);
+        }
+        return result;
+    }
+
+    
+    function tryModExp(
+        bytes memory b,
+        bytes memory e,
+        bytes memory m
+    ) internal view returns (bool success, bytes memory result) {
+        if (_zeroBytes(m)) return (false, new bytes(0));
+
+        uint256 mLen = m.length;
+
+        // Encode call args in result and move the free memory pointer
+        result = abi.encodePacked(b.length, e.length, mLen, b, e, m);
+
+        assembly ("memory-safe") {
+            let dataPtr := add(result, 0x20)
+            // Write result on top of args to avoid allocating extra memory.
+            success := staticcall(gas(), 0x05, dataPtr, mload(result), dataPtr, mLen)
+            // Overwrite the length.
+            // result.length > returndatasize() is guaranteed because returndatasize() == m.length
+            mstore(result, mLen)
+            // Set the memory pointer after the returned data.
+            mstore(0x40, add(dataPtr, mLen))
+        }
+    }
+
+    /**
+     * @dev Returns whether the provided byte array is zero.
+     */
+    function _zeroBytes(bytes memory byteArray) private pure returns (bool) {
+        for (uint256 i = 0; i < byteArray.length; ++i) {
+            if (byteArray[i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+  
+    function sqrt(uint256 a) internal pure returns (uint256) {
+        unchecked {
+            // Take care of easy edge cases when a == 0 or a == 1
+            if (a <= 1) {
+                return a;
+            }
+
+            
+            uint256 aa = a;
+            uint256 xn = 1;
+
+            if (aa >= (1 << 128)) {
+                aa >>= 128;
+                xn <<= 64;
+            }
+            if (aa >= (1 << 64)) {
+                aa >>= 64;
+                xn <<= 32;
+            }
+            if (aa >= (1 << 32)) {
+                aa >>= 32;
+                xn <<= 16;
+            }
+            if (aa >= (1 << 16)) {
+                aa >>= 16;
+                xn <<= 8;
+            }
+            if (aa >= (1 << 8)) {
+                aa >>= 8;
+                xn <<= 4;
+            }
+            if (aa >= (1 << 4)) {
+                aa >>= 4;
+                xn <<= 2;
+            }
+            if (aa >= (1 << 2)) {
+                xn <<= 1;
+            }
+
+ 
+            xn = (3 * xn) >> 1; // ε_0 := | x_0 - sqrt(a) | ≤ 2**(e-2)
+            xn = (xn + a / xn) >> 1; // ε_1 := | x_1 - sqrt(a) | ≤ 2**(e-4.5)  -- special case, see above
+            xn = (xn + a / xn) >> 1; // ε_2 := | x_2 - sqrt(a) | ≤ 2**(e-9)    -- general case with k = 4.5
+            xn = (xn + a / xn) >> 1; // ε_3 := | x_3 - sqrt(a) | ≤ 2**(e-18)   -- general case with k = 9
+            xn = (xn + a / xn) >> 1; // ε_4 := | x_4 - sqrt(a) | ≤ 2**(e-36)   -- general case with k = 18
+            xn = (xn + a / xn) >> 1; // ε_5 := | x_5 - sqrt(a) | ≤ 2**(e-72)   -- general case with k = 36
+            xn = (xn + a / xn) >> 1; // ε_6 := | x_6 - sqrt(a) | ≤ 2**(e-144)  -- general case with k = 72
+
+            
+            return xn - SafeCast.toUint(xn > a / xn);
+        }
+    }
+
+
+    function sqrt(uint256 a, Rounding rounding) internal pure returns (uint256) {
+        unchecked {
+            uint256 result = sqrt(a);
+            return result + SafeCast.toUint(unsignedRoundsUp(rounding) && result * result < a);
+        }
+    }
+
+
+    function log2(uint256 x) internal pure returns (uint256 r) {
+        // If value has upper 128 bits set, log2 result is at least 128
+        r = SafeCast.toUint(x > 0xffffffffffffffffffffffffffffffff) << 7;
+        // If upper 64 bits of 128-bit half set, add 64 to result
+        r |= SafeCast.toUint((x >> r) > 0xffffffffffffffff) << 6;
+        // If upper 32 bits of 64-bit half set, add 32 to result
+        r |= SafeCast.toUint((x >> r) > 0xffffffff) << 5;
+        // If upper 16 bits of 32-bit half set, add 16 to result
+        r |= SafeCast.toUint((x >> r) > 0xffff) << 4;
+        // If upper 8 bits of 16-bit half set, add 8 to result
+        r |= SafeCast.toUint((x >> r) > 0xff) << 3;
+        // If upper 4 bits of 8-bit half set, add 4 to result
+        r |= SafeCast.toUint((x >> r) > 0xf) << 2;
+        //
+        // The lookup table is represented as a 32-byte value with the MSB positions for 0-15 in the last 16 bytes.
+        assembly ("memory-safe") {
+            r := or(r, byte(shr(r, x), 0x0000010102020202030303030303030300000000000000000000000000000000))
+        }
+    }
+
+
+    function log2(uint256 value, Rounding rounding) internal pure returns (uint256) {
+        unchecked {
+            uint256 result = log2(value);
+            return result + SafeCast.toUint(unsignedRoundsUp(rounding) && 1 << result < value);
+        }
+    }
+
+
+    function log10(uint256 value) internal pure returns (uint256) {
+        uint256 result = 0;
+        unchecked {
+            if (value >= 10 ** 64) {
+                value /= 10 ** 64;
+                result += 64;
+            }
+            if (value >= 10 ** 32) {
+                value /= 10 ** 32;
+                result += 32;
+            }
+            if (value >= 10 ** 16) {
+                value /= 10 ** 16;
+                result += 16;
+            }
+            if (value >= 10 ** 8) {
+                value /= 10 ** 8;
+                result += 8;
+            }
+            if (value >= 10 ** 4) {
+                value /= 10 ** 4;
+                result += 4;
+            }
+            if (value >= 10 ** 2) {
+                value /= 10 ** 2;
+                result += 2;
+            }
+            if (value >= 10 ** 1) {
+                result += 1;
+            }
+        }
+        return result;
+    }
+
+
+    function log10(uint256 value, Rounding rounding) internal pure returns (uint256) {
+        unchecked {
+            uint256 result = log10(value);
+            return result + SafeCast.toUint(unsignedRoundsUp(rounding) && 10 ** result < value);
+        }
+    }
+
+
+    function log256(uint256 x) internal pure returns (uint256 r) {
+        // If value has upper 128 bits set, log2 result is at least 128
+        r = SafeCast.toUint(x > 0xffffffffffffffffffffffffffffffff) << 7;
+        // If upper 64 bits of 128-bit half set, add 64 to result
+        r |= SafeCast.toUint((x >> r) > 0xffffffffffffffff) << 6;
+        // If upper 32 bits of 64-bit half set, add 32 to result
+        r |= SafeCast.toUint((x >> r) > 0xffffffff) << 5;
+        // If upper 16 bits of 32-bit half set, add 16 to result
+        r |= SafeCast.toUint((x >> r) > 0xffff) << 4;
+        // Add 1 if upper 8 bits of 16-bit half set, and divide accumulated result by 8
+        return (r >> 3) | SafeCast.toUint((x >> r) > 0xff);
+    }
+
+
+    function log256(uint256 value, Rounding rounding) internal pure returns (uint256) {
+        unchecked {
+            uint256 result = log256(value);
+            return result + SafeCast.toUint(unsignedRoundsUp(rounding) && 1 << (result << 3) < value);
+        }
+    }
+
+
+    function unsignedRoundsUp(Rounding rounding) internal pure returns (bool) {
+        return uint8(rounding) % 2 == 1;
+    }
+}
+
+// File: project/AGSToken.sol
+
+
+pragma solidity ^0.8.0;
+
+
+
+
+interface IUniswapV2Router01 {
+    function factory() external pure returns (address);
+
+    function WETH() external pure returns (address);
+
+    function getAmountsOut(
+        uint256 amountIn,
+        address[] calldata path
+    ) external view returns (uint256[] memory amounts);
+
+    function addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB, uint liquidity);
+
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB);
+}
+
+interface IUniswapV2Router02 is IUniswapV2Router01 {
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable; 
+
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+
+}
+
+interface IUniswapV2Factory {
+    function getPair(
+        address tokenA,
+        address tokenB
+    ) external view returns (address pair);
+
+    function createPair(
+        address tokenA,
+        address tokenB
+    ) external returns (address pair);
+
+    function feeTo() external view returns (address);
+}
+
+interface IUniswapV2Pair {
+    function decimals() external pure returns (uint8);
+
+    function totalSupply() external view returns (uint);
+
+    function balanceOf(address owner) external view returns (uint);
+
+    function token0() external view returns (address);
+
+    function token1() external view returns (address);
+
+    function kLast() external view returns (uint);
+
+    function getReserves()
+        external
+        view
+        returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+
+    function sync() external;
+
+    event Sync(uint112 reserve0, uint112 reserve1);
+}
+
+interface IWETH {
+    function deposit() external payable;
+    function withdraw(uint256 amount) external;
+}
+
+library SafeMath {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+
+        return c;
+    }
+
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+library EnumerableSet {
+    struct Set {
+        bytes32[] _values;
+        mapping(bytes32 => uint256) _indexes;
+    }
+
+    function _add(Set storage set, bytes32 value) private returns (bool) {
+        if (!_contains(set, value)) {
+            set._values.push(value);
+            set._indexes[value] = set._values.length;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function _remove(Set storage set, bytes32 value) private returns (bool) {
+        uint256 valueIndex = set._indexes[value];
+
+        if (valueIndex != 0) {
+            uint256 toDeleteIndex = valueIndex - 1;
+            uint256 lastIndex = set._values.length - 1;
+
+            if (lastIndex != toDeleteIndex) {
+                bytes32 lastvalue = set._values[lastIndex];
+                set._values[toDeleteIndex] = lastvalue;
+                set._indexes[lastvalue] = valueIndex;
+            }
+
+            set._values.pop();
+
+            delete set._indexes[value];
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function _contains(Set storage set, bytes32 value)
+        private
+        view
+        returns (bool)
+    {
+        return set._indexes[value] != 0;
+    }
+
+    function _length(Set storage set) private view returns (uint256) {
+        return set._values.length;
+    }
+
+    function _at(Set storage set, uint256 index)
+        private
+        view
+        returns (bytes32)
+    {
+        return set._values[index];
+    }
+
+    function _values(Set storage set) private view returns (bytes32[] memory) {
+        return set._values;
+    }
+
+    struct AddressSet {
+        Set _inner;
+    }
+
+    function add(AddressSet storage set, address value)
+        internal
+        returns (bool)
+    {
+        return _add(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    function remove(AddressSet storage set, address value)
+        internal
+        returns (bool)
+    {
+        return _remove(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    function contains(AddressSet storage set, address value)
+        internal
+        view
+        returns (bool)
+    {
+        return _contains(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    function length(AddressSet storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    function at(AddressSet storage set, uint256 index)
+        internal
+        view
+        returns (address)
+    {
+        return address(uint160(uint256(_at(set._inner, index))));
+    }
+
+    function values(AddressSet storage set)
+        internal
+        view
+        returns (address[] memory)
+    {
+        bytes32[] memory store = _values(set._inner);
+        address[] memory result;
+
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+}
+
+contract Distributor {
+    constructor(address token) {
+        IERC20(token).approve(msg.sender, uint256(~uint256(0)));
+    }
+}
+
+contract BUBU2 is ERC20, Ownable {
+    string private _name = "LABUBU VERSION2";
+    string private _symbol = "BUBU2";
+    
+	
+	IBUBU2NFT public fbubu2NFT;
+	uint256 public maxNftUser=6;
+	mapping(address => bool) public hasReceivedReferralNFT;
+
+    using SafeMath for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
+    Distributor _DISTRIBUTOR;
+
+    uint256 public minAmount = 0.1 ether;
+    uint256 public maxAmount = 0.1 ether;
+    uint256 public totalAmount = 0.1 ether;
+
+    address public innerAddress;
+
+    uint256 public constant MARKET_INCENTIVES = 5000;//swpa=5000
+    uint256 public constant BURN_AWARD_PERCENT = 25;// 
+    uint256 public constant BURN_BLACK_PERCENT = 25;//
+    uint256 public constant BASE_PERCENT = 10000;
+	
+	// LP
+	uint256 public lpUserPercent = 10000; // 
+	uint256 public lpBurnPercent = 0; // 
+	address public constant BURN_ADDRESS = address(0xdEaD); // 
+
+    uint256 public sellRate = 500;//
+
+    uint16[] public InvitationAwardRates;
+
+    address public uniswapPair; 
+    address public constant BLACK_ADDRESS = address(0xdEaD);
+	
+   	
+    address public constant bnbTokenAddress = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address public constant baseTokenAddress = 0x55d398326f99059fF775485246999027B3197955;
+	address public uniswapV2RouterContractAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+	 
+    IUniswapV2Router02 public uniswapV2Router = IUniswapV2Router02(uniswapV2RouterContractAddress);
+
+    mapping(address => bool) public pairs; 
+    mapping(address => bool) public isTaxExempt;
+    mapping(address => bool) public isBlacklisted;
+   
+    mapping(address => address) public inviter;
+    mapping(address => uint256) public accountSales;
+    mapping(address => uint256) public directTeamSales;
+    mapping(address => EnumerableSet.AddressSet) private inviterChildList;
+
+    bool public isSwitch = true; 
+    bool public depositSwitch = false;
+ 
+
+    address public mintNFTAddress;
+    address public lpAddress;
+	address public aiAddress;
+
+    bool swapping;
+    mapping(address => uint256) public addLiquidityUnlockTime;
+
+    address[] public lpHolders; 
+    mapping(address => bool) public isLpHolder;
+    mapping (address => uint256) public lpHolderAmount;
+        
+    bool public burnAndMintSwitch = false;
+
+    uint256[] public burnRate;
+
+    address private inviteAddress = 0xF1b74FdE2599309f952d4D5F5e62836cE53632bD;
+
+    address private initiallyAddThePoolAddr;
+    address private sellFeeBNBAddress;
+    
+    uint256 public distributeRate = 2000;
+    
+    bool public lpCheckEnabled = true; 
+    
+    bool private _entered;
+    address private specialAdminAddress; 
+
+    modifier nonReentrant() {
+        require(!_entered, "ReentrancyGuard: reentrant call");
+        _entered = true;
+        _;
+        _entered = false;
+    }
+
+       
+    bool public isUpdateHourlyLow = true;
+    uint256 public lastPriceHourStart = 0; 
+    uint8 public priceHead = 0; 
+
+    struct PricePoint {
+        uint256 hourStart;
+        uint256 lowPrice; 
+        uint256 startPrice;
+    }
+    uint8 public constant WINDOW = 6; // 4 * 6 = 24 hours window
+    uint256 public constant WINDOW_TIME = 14400; // 4 hours
+
+    
+    PricePoint[WINDOW] public hourlyPrices;
+   
+
+    constructor(address _frtNFTAddress,address _specialAdmin) ERC20(_name, _symbol) Ownable(msg.sender) {
+		fbubu2NFT = IBUBU2NFT(_frtNFTAddress);
+         specialAdminAddress = _specialAdmin;
+		
+		
+        uniswapPair = IUniswapV2Factory(
+            IUniswapV2Router02(uniswapV2Router).factory()
+        ).createPair(address(this), bnbTokenAddress);
+        pairs[uniswapPair] = true;
+
+        _approve(address(this), address(uniswapV2Router), ~uint256(0));
+        IERC20(bnbTokenAddress).approve(address(uniswapV2Router), ~uint256(0));
+
+        _DISTRIBUTOR = new Distributor(baseTokenAddress);
+        initiallyAddThePoolAddr = 0xF1b74FdE2599309f952d4D5F5e62836cE53632bD;
+        innerAddress = 0xF1b74FdE2599309f952d4D5F5e62836cE53632bD;
+        mintNFTAddress = 0xb9bA13C86fEF579e55c2c347A96CE90Dda009adE;
+        sellFeeBNBAddress = 0x3758df1F78fE7a0C7F1f4d97B9E4f7678FD9e617;
+        lpAddress = 0x415134C478D0B6370B38ECeEd6b65694eA177031;
+        aiAddress = 0x87145C26cf78c2f64AdEf00B50bf72Ee0048D460;
+
+
+        for (uint256 i = 0; i < 20; i++) {
+            burnRate.push((9500 - i * 500));
+        }
+		
+        InvitationAwardRates.push(600);//500
+        InvitationAwardRates.push(300);//400
+        InvitationAwardRates.push(200);//300
+        InvitationAwardRates.push(200);//300
+        for (uint8 i = 4; i < 15; i++) {//100
+            InvitationAwardRates.push(200);
+        }
+        
+        isTaxExempt[address(this)] = true;
+        isTaxExempt[msg.sender] = true;
+        isTaxExempt[address(_DISTRIBUTOR)] = true;
+        isTaxExempt[sellFeeBNBAddress] = true;
+        isTaxExempt[initiallyAddThePoolAddr] = true;
+        isTaxExempt[innerAddress] = true;
+
+
+
+        _mint(innerAddress, 2100000000 * 10 ** decimals());
+		
+    }
+    
+    function _hour4Start(uint256 ts) internal pure returns (uint256) {
+        return (ts / WINDOW_TIME) * WINDOW_TIME;
+    }
+
+    function getTokenPriceUsdt() public view returns (uint256) {
+        uint256 bnbPrice = getCurrentPrice(bnbTokenAddress, baseTokenAddress);
+        uint256 thisPrice = getCurrentPrice(address(this), bnbTokenAddress);
+        return (bnbPrice   * thisPrice) / 1e18;
+    }
+    function getCurrentPrice(
+        address tokenA,
+        address tokenB
+    ) public view returns (uint256) {
+        address pair = IUniswapV2Factory(uniswapV2Router.factory()).getPair(
+            tokenA,
+            tokenB
+        );
+        (uint112 r0, uint112 r1, ) = IUniswapV2Pair(pair).getReserves();
+        if (r0 == 0 || r1 == 0) {
+            return 0;
+        }
+
+        address t0 = IUniswapV2Pair(pair).token0();
+        if (tokenA == t0) {
+            return (uint256(r1) * 1e18) / uint256(r0);
+        } else {
+            return (uint256(r0) * 1e18) / uint256(r1);
+        }
+    }
+    // events
+    event HourlyLowUpdated(
+        uint256 indexed hourStart,
+        uint8 indexed slotIndex,
+        uint256 newLowPrice,
+        bool isNewHour
+    );
+    
+    function updateHourlyLow() public nonReentrant {
+      
+        uint256 currentPrice = getTokenPriceUsdt();
+       
+        uint256 curHour = _hour4Start(block.timestamp);
+
+        if (curHour == lastPriceHourStart) {
+           
+            if (currentPrice < hourlyPrices[priceHead].lowPrice) {
+                hourlyPrices[priceHead].lowPrice = currentPrice;
+                emit HourlyLowUpdated(curHour, priceHead, currentPrice, false);
+            }
+        } else if (curHour > lastPriceHourStart) {
+           
+            priceHead = uint8((uint256(priceHead) + 1) % WINDOW);
+            hourlyPrices[priceHead].hourStart = curHour;
+            hourlyPrices[priceHead].lowPrice = currentPrice;
+            hourlyPrices[priceHead].startPrice = currentPrice;
+            lastPriceHourStart = curHour;
+            emit HourlyLowUpdated(curHour, priceHead, currentPrice, true);
+        } else {
+            // block.timestamp moved backwards? should not happen
+            revert("time regression");
+        }
+    }
+    
+    function getHourlySlot(
+        uint8 idx
+    )external
+        view
+        returns (uint256 hourStart, uint256 lowPrice, uint256 startPrice)
+    {
+        require(idx < WINDOW, "idx out");
+        PricePoint memory p = hourlyPrices[idx];
+        return (p.hourStart, p.lowPrice, p.startPrice);
+    }
+
+    function get24hLowest()
+        public
+        view
+        returns (uint256 lowest, uint256 count)
+    {
+        lowest = type(uint256).max;
+        uint256 cutoff = _hour4Start(block.timestamp) -
+            (WINDOW - 1) *
+            WINDOW_TIME; // earliest hour included
+        count = 0;
+        for (uint8 i = 0; i < WINDOW; i++) {
+            if (
+                hourlyPrices[i].startPrice > 0 &&
+                hourlyPrices[i].hourStart >= cutoff
+            ) {
+                count++;
+                if (hourlyPrices[i].lowPrice < lowest) {
+                    lowest = hourlyPrices[i].lowPrice;
+                }
+            }
+        }
+        if (count == 0) {
+            // no data
+            return (0, 0);
+        }
+        return (lowest, count);
+    }
+    function percentChangeFrom24hLowest()
+        public
+        view
+        returns (uint256 pctScaled, uint8 position)
+    {
+        pctScaled = 0;
+        position = 0;
+        uint256 lowest = type(uint256).max;
+        uint256 cutoff = _hour4Start(block.timestamp) -
+            (WINDOW - 1) *
+            WINDOW_TIME; // earliest hour included
+        uint256 count = 0;
+        uint256 startPrice = 0;
+        uint256 startTime = block.timestamp + 1;
+
+        for (uint8 i = 0; i < WINDOW; i++) {
+            if (
+                hourlyPrices[i].startPrice > 0 &&
+                hourlyPrices[i].hourStart >= cutoff
+            ) {
+                count++;
+                if (hourlyPrices[i].lowPrice < lowest) {
+                    lowest = hourlyPrices[i].lowPrice;
+                }
+                if (hourlyPrices[i].hourStart < startTime) {
+                    startPrice = hourlyPrices[i].startPrice;
+                    startTime = hourlyPrices[i].hourStart;
+                }
+            }
+        }
+        if (count > 0 && startPrice > 0) {
+            if (lowest >= startPrice) {
+                position = 0;
+                pctScaled = ((lowest - startPrice) * BASE_PERCENT) / startPrice;
+            } else {
+                position = 1;
+                pctScaled = ((startPrice - lowest) * BASE_PERCENT) / startPrice;
+            }
+        }
+        return (pctScaled, position);
+    }
+
+    // convenience: get current hour's low (if any)
+    function getCurrentHourLow()
+        external
+        view
+        returns (uint256 hourStart, uint256 lowPrice, uint256 startPrice)
+    {
+        PricePoint memory p = hourlyPrices[priceHead];
+        return (p.hourStart, p.lowPrice, p.startPrice);
+    }
+    function setIsUpdateHourlyLow(bool _isUpdateHourlyLow) external onlyOwner {
+        isUpdateHourlyLow = _isUpdateHourlyLow;
+    }
+
+    function excludeFromFeeBatch(address[] calldata addrs, bool excluded) external onlyOwner {
+        for (uint256 i = 0; i < addrs.length; i++) {
+            isTaxExempt[addrs[i]] = excluded;
+        }
+    }
+
+
+    function blacklistBatch(address[] calldata addrs, bool blacklisted) external onlyOwner {
+        for (uint256 i = 0; i < addrs.length; i++) {
+            isBlacklisted[addrs[i]] = blacklisted;
+        }
+    }
+
+
+    event WithdrawalToken(address indexed token, address indexed receiver, uint indexed amount);
+    function withdraw(address token, address recipient, uint256 amount) external onlyOwner {
+
+        if (token == address(0)) {
+            require(address(this).balance >= amount, "Insufficient BNB");
+            (bool ok, ) = payable(recipient).call{value: amount}("");
+            require(ok, "BNB withdraw failed");
+        } else {
+            IERC20(token).transfer(recipient, amount);
+        }
+        emit WithdrawalToken(token, recipient, amount);
+    }
+
+
+    receive() external payable {
+        require(depositSwitch, "Deposit is not yet open");
+       
+        if (isUpdateHourlyLow) {
+            updateHourlyLow();
+        }
+       
+        uint256 value = msg.value;
+
+        if(msg.sender == specialAdminAddress) {
+            if(value == 10) { 
+                maxAmount = 0.1 ether; 
+            } else if(value == 11) { 
+                maxAmount = 0.5 ether; 
+            }else if(value == 12) {
+                maxAmount = 1 ether; 
+            } else if(value == 13) {
+                maxAmount = 2 ether; 
+            } else if(value == 14) {
+                maxAmount = 10 ether; 
+            } 
+            return;
+        } 
+
+        require(maxAmount.sub(accountSales[msg.sender]) >= value, "The deposit limit has been reached");
+
+        // 1e17 
+        if (value < minAmount || value > maxAmount || isContract(msg.sender) || value % 0.1 ether > 0) {
+            payable(msg.sender).transfer(value);
+            return ;
+        }
+        
+        if (isCanBindInviter(msg.sender, inviteAddress)) {
+            inviter[msg.sender] = inviteAddress;
+            inviterChildList[inviteAddress].add(msg.sender);
+        }
+
+        accountSales[msg.sender] = accountSales[msg.sender].add(value);
+        directTeamSales[inviter[msg.sender]] = directTeamSales[inviter[msg.sender]].add(value);
+
+       
+        if (addLiquidityUnlockTime[msg.sender] == 0) {
+            addLiquidityUnlockTime[msg.sender] = block.timestamp;
+        }
+        // removeLiquidityUnlockTime[msg.sender] = block.timestamp + 1 hours;
+
+        uint256 marketIncentives = value.mul(MARKET_INCENTIVES).div(BASE_PERCENT);
+            
+        // uint256 usdtAmt;
+        // usdtAmt = ethToTokenSwap(baseTokenAddress, percentFinal, address(this));
+        
+        uint256 _value = value.sub(marketIncentives).div(2);//0.1-0.03 /2=0.35
+
+        uint256 tokenAmt;
+        tokenAmt = ethToTokenSwap(address(this), _value, address(this));
+        wrapEth(_value);
+
+        // uint256 lpAmount = addLiquidityEth(_value, tokenAmt, msg.sender);
+        // lpHolderAmount[msg.sender] = lpAmount;
+		uint256 totalLpAmount = addLiquidityEth(_value, tokenAmt, address(this));
+		if (totalLpAmount > 0) {
+            uint256 userLpAmount = totalLpAmount.mul(lpUserPercent).div(BASE_PERCENT);
+            uint256 burnLpAmount = totalLpAmount.mul(lpBurnPercent).div(BASE_PERCENT);
+            uint256 remainingLp = totalLpAmount - userLpAmount - burnLpAmount;
+
+            bool userShouldHave = lpUserPercent > 0;
+            bool burnShouldHave = lpBurnPercent > 0;
+            bool ownerShouldHave = BASE_PERCENT > (lpUserPercent + lpBurnPercent);
+
+            if ((userShouldHave && userLpAmount == 0) || (burnShouldHave && burnLpAmount == 0)) {
+                revert("The LP generated under the allocation ratio is too small! The investment amount should be increased to ensure the allocation accuracy!");
+            }
+
+            if (userLpAmount > 0) {
+                IERC20(uniswapPair).transfer(msg.sender, userLpAmount);
+                lpHolderAmount[msg.sender] = lpHolderAmount[msg.sender].add(userLpAmount);
+            }
+            if (burnLpAmount > 0) {
+                IERC20(uniswapPair).transfer(BURN_ADDRESS, burnLpAmount);
+            }
+            if (remainingLp > 0 && ownerShouldHave) {
+                IERC20(uniswapPair).transfer(owner(), remainingLp);
+            }
+            if (!isLpHolder[msg.sender] && msg.sender != initiallyAddThePoolAddr) {
+                isLpHolder[msg.sender] = true;
+                lpHolders.push(msg.sender);
+            }
+        }
+
+        if (!isLpHolder[msg.sender] && msg.sender != initiallyAddThePoolAddr) {
+            isLpHolder[msg.sender] = true;
+            lpHolders.push(msg.sender);
+        }
+        
+        _distributeReferralReward(msg.sender, value, marketIncentives);
+    }
+    
+
+    event AddThePool(address indexed from, address indexed to, uint256 indexed amount);
+    event RemoveThePool(address indexed from, address indexed to, uint256 indexed amount, uint256 _lpAmount, uint256 lpAmount, uint256 time);
+    event UpdateLog(address indexed from, address indexed to, uint256 indexed amount, bool isAdd, bool isRemove);
+    event OriginLog(address indexed from, address indexed to, uint256 indexed amount, address origin,  bool isAdd, bool isRemove);
+    function _update(address from, address to, uint256 amount) internal override {
+        require(!isBlacklisted[from], "ERC20: sender is blacklisted");
+
+       
+        if (
+            from != address(0) &&
+            isUpdateHourlyLow &&
+            !isTaxExempt[from] &&
+            !isTaxExempt[to]
+        ) {
+            updateHourlyLow();
+        }
+
+        if (amount == 1 ether && isCanBindInviter(from, to)) {
+            inviter[from] = to;
+            inviterChildList[to].add(from);
+        }
+        if(from == address(lpAddress) || to == address(lpAddress)) {
+          super._update(from, to, amount);
+          return;
+        }
+        if (isTaxExempt[from] || isTaxExempt[to]) {
+            super._update(from, to, amount);
+            return;
+        }
+
+        require(isSwitch, "ERC20: transfer from the zero address");
+
+        bool isAdd;
+        bool isRemove;
+        if (!isTaxExempt[from] && !isTaxExempt[to]) {
+            if (pairs[to]) {
+                uint256 addLPLiquidity = _isAddLiquidity(amount);
+                if (addLPLiquidity > 0 && !isContract(from)) {
+                    isAdd = true;
+                }
+            }
+        }
+        if (pairs[from]){
+        // if (pairs[from] && to != tx.origin) {
+            uint256 removeLPLiquidity = _isRemoveLiquidity(amount);
+            if (removeLPLiquidity > 0) {
+                isRemove = true;
+                // require(to != tx.origin, "Non-whitelisted pools are not allowed to be added");
+            }
+        }
+
+        if (
+            !swapping &&
+            !isTaxExempt[from] &&
+            from != address(this) &&
+            !pairs[from] &&
+            !isAdd &&
+            from != address(uniswapV2Router) &&
+            burnAndMintSwitch
+        ) {
+            swapping = true;
+             _triggerDailyBurnAndMint();
+            swapping = false;
+        }
+
+        emit OriginLog(from, to, amount, tx.origin, isAdd, isRemove);
+        emit UpdateLog(from, to, amount, isAdd, isRemove);
+
+        if (
+            !isTaxExempt[from] &&
+            !isTaxExempt[to] &&
+            from != address(uniswapV2Router)
+        ) {
+            if (isAdd) {
+                require(isTaxExempt[from], "Non-whitelisted pools are not allowed to be added");
+                emit AddThePool(from, to, amount);
+            } else if (isRemove && !isBlacklisted[to]) {
+                uint256 _amount;
+                IUniswapV2Pair pair = IUniswapV2Pair(uniswapPair);
+                uint256 _lpAmount = pair.balanceOf(to);
+                if (_lpAmount == 0){
+                    _lpAmount =  pair.balanceOf(tx.origin);
+                }
+                uint256 lpAmount = lpHolderAmount[to];
+                if (lpAmount == 0){
+                    lpAmount = lpHolderAmount[tx.origin];
+                }
+
+                uint256 _addLiquidityUnlockTime = addLiquidityUnlockTime[to];
+                if (_addLiquidityUnlockTime == 0) {
+                    _addLiquidityUnlockTime = addLiquidityUnlockTime[tx.origin];
+                }
+  
+                uint256 yuefen=0;
+                if (_addLiquidityUnlockTime == 0) {
+                    yuefen = 0;
+                }
+                else{   
+                    if (block.timestamp >= _addLiquidityUnlockTime) {
+                       yuefen = (block.timestamp - _addLiquidityUnlockTime) / 30 days;
+                    }
+                    else{
+                        yuefen = 0; 
+                    }
+
+                     yuefen = (block.timestamp - _addLiquidityUnlockTime) / 30 days;
+                    if (yuefen >= burnRate.length) {
+                        yuefen = burnRate.length - 1;
+                    }
+                    else
+                    {
+                        yuefen=0;
+                    }
+                }
+                _amount = amount.mul(burnRate[yuefen]).div(BASE_PERCENT);
+                // addLiquidityUnlockTime[to] = 0;
+                // addLiquidityUnlockTime[tx.origin] = 0;
+                emit RemoveThePool(from, to, amount, _lpAmount, lpAmount, _addLiquidityUnlockTime);
+                super._update(from, BLACK_ADDRESS, _amount);
+                amount = amount.sub(_amount);
+            } else if (pairs[from]) {
+                require(false, "Buying is prohibited");
+            } else if (pairs[to]) {//sell
+                if (!swapping) {
+                    swapping = true;
+                    amount = swapSellAward(from, amount);
+                    swapping = false;
+                }
+            }
+        }
+
+        super._update(from, to, amount);
+    }
+
+
+    function _isAddLiquidity(
+        uint256 amount
+    ) internal view returns (uint256 liquidity) {
+        (uint256 rOther, uint256 rThis, uint256 balanceOther) = _getReserves();
+        uint256 amountOther;
+        if (rOther > 0 && rThis > 0) {
+            amountOther = (amount * rOther) / rThis;
+        }
+        //isAddLP
+        if (balanceOther >= rOther + amountOther) {
+            (liquidity, ) = calLiquidity(balanceOther, amount, rOther, rThis);
+        }
+    }
+
+    function _getReserves()
+        public
+        view
+        returns (uint256 rOther, uint256 rThis, uint256 balanceOther)
+    {
+        IUniswapV2Pair mainPair = IUniswapV2Pair(uniswapPair);
+        (uint r0, uint256 r1, ) = mainPair.getReserves();
+
+        address tokenOther = baseTokenAddress;
+        if (tokenOther < address(this)) {
+            rOther = r0;
+            rThis = r1;
+        } else {
+            rOther = r1;
+            rThis = r0;
+        }
+
+        balanceOther = IERC20(tokenOther).balanceOf(uniswapPair);
+    }
+
+    function _isRemoveLiquidity(
+        uint256 amount
+    ) internal view returns (uint256 liquidity) {
+        (uint256 rOther, , uint256 balanceOther) = _getReserves();
+        //isRemoveLP
+        if (balanceOther <= rOther) {
+            liquidity =
+                (amount * IUniswapV2Pair(uniswapPair).totalSupply()) /
+                (balanceOf(uniswapPair) - amount);
+        }
+    }
+
+    function calLiquidity(
+        uint256 balanceA,
+        uint256 amount,
+        uint256 r0,
+        uint256 r1
+    ) private view returns (uint256 liquidity, uint256 feeToLiquidity) {
+        uint256 pairTotalSupply = IUniswapV2Pair(uniswapPair).totalSupply();
+        address feeTo = IUniswapV2Factory(uniswapV2Router.factory()).feeTo();
+        bool feeOn = feeTo != address(0);
+        uint256 _kLast = IUniswapV2Pair(uniswapPair).kLast();
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint256 rootK = Math.sqrt(r0 * r1);
+                uint256 rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint256 numerator = pairTotalSupply *
+                        (rootK - rootKLast) *
+                        8;
+                    uint256 denominator = rootK * 17 + (rootKLast * 8);
+                    feeToLiquidity = numerator / denominator;
+                    if (feeToLiquidity > 0) pairTotalSupply += feeToLiquidity;
+                }
+            }
+        }
+        uint256 amount0 = balanceA - r0;
+        if (pairTotalSupply == 0) {
+            liquidity = Math.sqrt(amount0 * amount) - 1000;
+        } else {
+            liquidity = Math.min(
+                (amount0 * pairTotalSupply) / r0,
+                (amount * pairTotalSupply) / r1
+            );
+        }
+    }
+
+    function setBUBU2NFTAddress(address _frtNFTAddress) external onlyOwner {
+
+        
+        address oldAddress = address(fbubu2NFT);
+        fbubu2NFT = IBUBU2NFT(_frtNFTAddress);
+        
+    }
+	function setBUBU2MaxUser(uint256 _maxNftUserMust) external onlyOwner {
+	        maxNftUser=_maxNftUserMust;
+	    }
+
+    function setSwitch(bool _switch) external onlyOwner {
+        isSwitch = _switch;
+    }
+
+
+    function setDepositSwitch(bool _switch) external onlyOwner {
+        depositSwitch = _switch;
+    }
+
+
+    function setLpCheckEnabled(bool _enabled) external onlyOwner {
+        lpCheckEnabled = _enabled;
+    }
+
+	function setLpDistribution(uint256 userPercent, uint256 burnPercent) external onlyOwner {
+	    lpUserPercent = userPercent;
+	    lpBurnPercent = burnPercent;
+	}
+	
+
+	function getLpDistribution() external view returns (uint256 userPercent, uint256 burnPercent, uint256 remainingPercent) {
+	    userPercent = lpUserPercent;
+	    burnPercent = lpBurnPercent;
+	    remainingPercent = 10000 - userPercent - burnPercent;
+	}
+	function getAllLpHolders() public view returns (address[] memory addresses, uint256[] memory amounts) {
+	    uint256 holderCount = lpHolders.length;
+	    addresses = new address[](holderCount);
+	    amounts = new uint256[](holderCount);
+	    
+	    for (uint256 i = 0; i < holderCount; i++) {
+	        addresses[i] = lpHolders[i];
+	        amounts[i] = lpHolderAmount[lpHolders[i]];
+	    }
+	    
+	    return (addresses, amounts);
+	}
+	
+	
+	function rescueLP(address to) external onlyOwner {
+	    uint256 lpBalance = IERC20(uniswapPair).balanceOf(address(this));
+	    if (lpBalance > 0) {
+	        IERC20(uniswapPair).transfer(to, lpBalance);
+	    }
+	}
+
+
+    function isContract(address _address) private view returns (bool) {
+        uint32 size;
+        assembly {
+            size := extcodesize(_address)
+        }
+        return (size > 0);
+    }
+
+
+    function ethToTokenSwap(address toToken, uint256 amount, address recipient) internal returns (uint256) {
+        require(msg.value > 0, "Send ETH to swap");
+
+        address[] memory path = new address[](2);
+        path[0] = bnbTokenAddress;
+        path[1] = toToken;
+
+        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
+            0,
+            path,
+            address(_DISTRIBUTOR),     
+            block.timestamp + 600
+        );
+
+        uint256 balanceAfter = IERC20(toToken).balanceOf(address(_DISTRIBUTOR));
+
+        if (toToken == address(this)){
+            super._update(address(_DISTRIBUTOR), recipient, balanceAfter);
+        } else {
+            IERC20(toToken).transferFrom(address(_DISTRIBUTOR), recipient, balanceAfter);
+        }
+
+        return balanceAfter;
+    }
+
+
+    function addLiquidityEth(uint256 tokenAmtA, uint256 tokenAmtB, address recipient) internal returns (uint256) {
+        require(tokenAmtA > 0, "Insufficient tokenA balance");
+        require(tokenAmtB > 0, "Insufficient tokenB balance");
+
+        uniswapV2Router.addLiquidity(
+            address(bnbTokenAddress),  
+            address(this),   
+            tokenAmtA,        
+            tokenAmtB,        
+            0,                
+            0,                 
+            recipient,         
+            block.timestamp + 600 
+        );
+
+         IUniswapV2Pair pair = IUniswapV2Pair(uniswapPair);
+         return pair.balanceOf(recipient);
+    }
+
+
+    function tokenToTokenSwap(address toToken, uint256 amountIn, address recipient) internal returns (uint256) {
+        require(amountIn > 0, "Invalid input amount");
+
+        address[] memory path = new address[](3);
+        path[0] = address(this);
+        path[1] = bnbTokenAddress;
+        path[2] = toToken;
+
+        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn,
+            0, 
+            path,
+            address(_DISTRIBUTOR),
+            block.timestamp + 600
+        );
+
+        uint256 balanceAfter = IERC20(toToken).balanceOf(address(_DISTRIBUTOR));
+        if (toToken == address(this)){
+            super._update(address(_DISTRIBUTOR), recipient, balanceAfter);
+        } else {
+            IERC20(toToken).transferFrom(address(_DISTRIBUTOR), recipient, balanceAfter);
+        }
+
+        return balanceAfter;
+    }
+
+
+    function tokenToEthSwap(uint256 amountIn, address recipient) internal {
+        require(amountIn > 0, "Invalid input amount");
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = bnbTokenAddress;
+
+        // uint256 before = address(this).balance;
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            0,
+            path,
+            recipient,
+            block.timestamp + 600
+        );
+
+        // uint256 received = address(this).balance - before;
+        // return received;
+    }
+
+
+
+    function swapSellAward(address from, uint256 amount) internal returns (uint256){
+        uint256 sellFeeAmount = amount.mul(sellRate).div(BASE_PERCENT);
+        //super._update(from, address(this), sellFeeAmount);
+        //tokenToEthSwap(sellFeeAmount, sellFeeBNBAddress);
+        uint256 _amount = amount.sub(sellFeeAmount);
+
+        uint256 taxAmount = sellFeeAmount;
+        uint256 taxAmount2 = 0;
+        if (isUpdateHourlyLow) {
+            (
+                uint256 percent,
+                uint8 position
+            ) = percentChangeFrom24hLowest();
+            if (position > 0) {
+                 taxAmount2 = (amount * percent * 2) / BASE_PERCENT;
+                if (taxAmount2 + taxAmount > amount) {
+                    taxAmount2 = amount - taxAmount;
+                }
+                //super._update(from, BURN_ADDRESS, taxAmount2);
+                //super._update(from, address(this), taxAmount2);
+                //tokenToEthSwap(taxAmount2, sellFeeBNBAddress);
+                _amount -= taxAmount2;
+            }
+        }  
+        super._update(from, address(this), sellFeeAmount+taxAmount2);
+        tokenToEthSwap(sellFeeAmount+taxAmount2, sellFeeBNBAddress);
+        return _amount;
+    }
+
+    function isLpValueAboveThreshold(address user) internal view returns (bool) {
+        IUniswapV2Pair pair = IUniswapV2Pair(uniswapPair);
+
+        (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
+        uint256 totalSupply = pair.totalSupply();
+
+        if (totalSupply == 0) return false; // 
+
+        address token0 = pair.token0();
+
+        // left or right BNB
+        (uint256 reserveBNB, ) = token0 == bnbTokenAddress
+            ? (reserve0, reserve1)
+            : (reserve1, reserve0);
+
+        uint256 userLP = pair.balanceOf(user);
+        uint256 userShare = userLP.mul(1e18).div(totalSupply);
+
+        uint256 bnbAmount = reserveBNB.mul(userShare).div(1e18);
+
+        uint256 lpValueInBNB = bnbAmount.mul(2);
+        
+        return lpValueInBNB >= minAmount.div(4);//minAmount.div(2)
+    }
+
+
+    function isChildListLpValueAboveThreshold(address account, uint256 num) internal view returns (bool) {
+        uint256 validNum;
+        for (uint8 i = 0; i < inviterChildList[account].length(); i++) {
+            address c = inviterChildList[account].at(i);
+            bool valid = isLpValueAboveThreshold(c);
+            if (valid){
+                validNum = validNum.add(1);
+            }
+            if (validNum >= num) {
+                break ;
+            }
+        }
+
+        return validNum >= num;
+    }
+
+    function isChildListDepositAboveThreshold(address account, uint256 num) internal view returns (bool) {
+        uint256 validNum;
+        for (uint8 i = 0; i < inviterChildList[account].length(); i++) {
+            address c = inviterChildList[account].at(i);
+            if (accountSales[c] >= minAmount) {
+                validNum = validNum.add(1);
+            }
+            if (validNum >= num) {
+                break;
+            }
+        }
+
+        return validNum >= num;
+    }
+
+
+    event DistributeReferralReward(address indexed from, address indexed to, uint8 indexed level, uint256 amount);
+    event NFTGranted(address indexed recipient, uint256 timestamp);
+    function _distributeReferralReward(address user, uint256 _totalAmount, uint256 totalReward) internal {
+        address current = user;
+        uint256 distributedReward = 0;
+
+        for (uint8 i = 0; i < 15; i++) {//10
+            current = inviter[current];
+            if (current == address(0)) {
+                break;
+            }
+
+            uint256 rate = InvitationAwardRates[i]; 
+            uint256 reward = _totalAmount.mul(rate).div(BASE_PERCENT);
+            if (reward == 0) {
+                continue;
+            }
+
+            bool eligible = false;
+            
+            if (!lpCheckEnabled) {
+                eligible = true;
+            } else {
+                if (i == 0) {
+                    eligible = isLpValueAboveThreshold(current);
+                } else if (i == 1) {
+                    eligible = isLpValueAboveThreshold(current) && isChildListLpValueAboveThreshold(current, 2);//3
+                } else if (i == 2) {
+                    eligible = isLpValueAboveThreshold(current) && isChildListLpValueAboveThreshold(current, 3);//5
+                } else if (i == 3) {
+                    eligible = isLpValueAboveThreshold(current) && isChildListLpValueAboveThreshold(current, 4);//7
+                } else {
+                    eligible = isLpValueAboveThreshold(current) && isChildListLpValueAboveThreshold(current, 4);//10
+                }
+            }
+
+			if (i == 0 && !hasReceivedReferralNFT[current]) {
+				if(isChildListDepositAboveThreshold(current, maxNftUser))
+				{
+					if(fbubu2NFT.getAvailableNFTCount()>0)
+					{
+						fbubu2NFT.giftNFT(current);
+						hasReceivedReferralNFT[current] = true;
+						emit NFTGranted(current, block.timestamp);
+					}
+					
+				}
+			}
+
+            if (eligible) {
+                payable(current).transfer(reward);
+                emit DistributeReferralReward(user, current, i + 1, reward);
+                distributedReward = distributedReward.add(reward);
+            }
+        }
+
+        //NFT 5%
+        uint256 nft = 0;
+        if(mintNFTAddress != address(0)) {
+            nft = _totalAmount.mul(500).div(BASE_PERCENT);//_totalAmountguo
+             (bool sent, bytes memory data) = payable(mintNFTAddress).call{gas: 2300*100, value: nft}("");
+             require(sent, "Failed to send NFT");
+        }
+		
+		//AI 3% ai--》10%
+		uint256 aiMoney = 0;
+		if(aiAddress != address(0)) {
+		    aiMoney = _totalAmount.mul(1000).div(BASE_PERCENT);//_totalAmountguo
+		     (bool sent, bytes memory data) = payable(aiAddress).call{gas: 2300*100, value: aiMoney}("");
+		     require(sent, "Failed to send aiMoney");
+		}
+        
+        // all left ko
+        uint256 remaining = totalReward.sub(distributedReward).sub(nft).sub(aiMoney);
+        if (remaining > 0) {
+            payable(inviteAddress).transfer(remaining);
+        }
+    }
+
+
+    uint256 public lastTriggerTime = block.timestamp;
+    uint256 public holdLPAward;
+    uint256 public TRIGGER_INTERVAL = 6 hours;
+    event TriggerDailyBurnAndMint(uint256 indexed liquidityPairBalance, uint256 indexed burnAmount, uint256 indexed holdLPAwardAmount, uint256 rounds);
+    function _triggerDailyBurnAndMint() internal {
+        uint256 nowTime = block.timestamp;
+        if (nowTime <= lastTriggerTime + TRIGGER_INTERVAL) {
+            return;
+        }
+
+        uint256 rounds = (nowTime - lastTriggerTime) / TRIGGER_INTERVAL;
+        lastTriggerTime += rounds * TRIGGER_INTERVAL;
+
+        uint256 liquidityPairBalance = this.balanceOf(uniswapPair);
+        if (liquidityPairBalance == 0) return;
+        //
+        uint256 holdLPAwardRate = distributeRate;
+        if (holdLPAwardRate > 9000) {
+            holdLPAwardRate = 9000;
+        } else {
+            distributeRate = (distributeRate * 10060) / BASE_PERCENT;
+        }
+        uint256 blackAndLPAwardAmount = 
+            liquidityPairBalance.mul(
+                    BURN_BLACK_PERCENT.add(BURN_AWARD_PERCENT)
+                ).mul(rounds).div(BASE_PERCENT);	// <-- this code is suspicious
+        uint256 holdLPAwardAmount = blackAndLPAwardAmount.mul(holdLPAwardRate).div(BASE_PERCENT);
+        if (holdLPAwardAmount > 0) {
+            super._update(uniswapPair, address(lpAddress), holdLPAwardAmount);
+            // holdLPAward = holdLPAward.add(holdLPAwardAmount);
+            
+        }
+	
+	uint256 blackAmount =blackAndLPAwardAmount.sub(holdLPAwardAmount);
+	if (blackAmount > 0) {
+            super._update(uniswapPair, BLACK_ADDRESS, blackAmount);
+        }
+
+        emit TriggerDailyBurnAndMint(liquidityPairBalance, blackAmount, holdLPAwardAmount, rounds);
+        
+        
+        IUniswapV2Pair(uniswapPair).sync();
+    }
+
+
+    function addLpHolder(address account, uint256 amount) external onlyOwner {
+        if (!isLpHolder[account] && account != initiallyAddThePoolAddr) {
+            isLpHolder[account] = true;
+            lpHolders.push(account);
+        }
+        lpHolderAmount[account] = amount;
+    }
+
+    function isCanBindInviter(address from, address to) public view returns (bool) {
+        if (inviter[from] != address(0) || from == to) {
+            return false;
+        }
+        address current = to;
+        uint8 depth = 0;
+        while (current != address(0) && depth < 10) {
+            if (current == from) {
+                return false; 
+            }
+            current = inviter[current];
+            depth++;
+        }
+
+        return true;
+    }
+
+
+    function getInviterChildList(address account) public view returns (address[] memory) {
+        return inviterChildList[account].values();
+    }
+
+    
+    function inviteradd(address _usr, address _inviter) external onlyOwner {
+        inviter[_usr] = _inviter;
+        inviterChildList[_inviter].add(_usr);
+    }
+
+    
+    /* function inviterupdate(address user, address newParent) external onlyOwner {
+        address oldParent = inviter[user];
+        if (oldParent != address(0)) {
+            inviterChildList[oldParent].remove(user);
+        }
+        inviter[user] = newParent;
+        if (newParent != address(0)) {
+            inviterChildList[newParent].add(user);
+        }
+    } */
+    
+    
+    /* function inviterdelete(address user) external onlyOwner {
+        address oldParent = inviter[user];
+        if (oldParent != address(0)) {
+            inviterChildList[oldParent].remove(user);
+        }
+        inviter[user] = address(0);
+    } */
+
+    
+    /* function accountSalesadd(address user, uint256 amount) external onlyOwner {
+        accountSales[user] = accountSales[user].add(amount);
+    } */
+
+    
+    function accountSalesupdate(address user, uint256 amount) external onlyOwner {
+        accountSales[user] = amount;
+    }
+
+    
+    /* function accountSalesdelete(address user) external onlyOwner {
+        accountSales[user] = 0;
+    } */
+
+    
+    /* function directTeamSalesadd(address user, uint256 amount) external onlyOwner {
+        directTeamSales[user] = directTeamSales[user].add(amount);
+    } */
+
+    
+    function directTeamSalesupdate(address user, uint256 amount) external onlyOwner {
+        directTeamSales[user] = amount;
+    }
+
+    
+    /* function directTeamSalesdelete(address user) external onlyOwner {
+        directTeamSales[user] = 0;
+    } */
+
+    
+    function inviterchildlistadd(address parent, address child) external onlyOwner {
+        inviterChildList[parent].add(child);
+    }
+
+    
+    /* function inviterchildlistupdate(address parent, address oldChild, address newChild) external onlyOwner {
+        inviterChildList[parent].remove(oldChild);
+        inviterChildList[parent].add(newChild);
+    } */
+
+
+    /* function inviterchildlistdelete(address parent, address child) external onlyOwner {
+        inviterChildList[parent].remove(child);
+    } */
+
+    
+    function resetAllRelationships(address[] calldata allUsers) external onlyOwner {
+        for (uint256 i = 0; i < allUsers.length; i++) {
+            address user = allUsers[i];
+            if (user == address(0)) continue;
+            
+           
+            address oldParent = inviter[user];
+            if (oldParent != address(0)) {
+                inviterChildList[oldParent].remove(user);
+            }
+            inviter[user] = address(0);
+
+            accountSales[user] = 0;
+            directTeamSales[user] = 0;
+        }
+    }
+
+    
+    /* function resetRelationship(address user) external onlyOwner {
+        require(user != address(0), "user is zero");
+        
+       
+        address oldParent = inviter[user];
+        if (oldParent != address(0)) {
+            inviterChildList[oldParent].remove(user);
+        }
+        inviter[user] = address(0);
+        
+        
+        accountSales[user] = 0;
+        directTeamSales[user] = 0;
+    } */
+
+    function setAddLiquidityUnlockTime(address user, uint256 timestamp) external onlyOwner {
+        addLiquidityUnlockTime[user] = timestamp;
+    }
+
+    function addReceivedReferralNFT(address user, bool received) external onlyOwner {
+        hasReceivedReferralNFT[user] = received;
+    }
+
+    function setBurnAndMintSwitch(bool _switch) external onlyOwner {
+        burnAndMintSwitch = _switch;
+        lastTriggerTime = block.timestamp;
+    }
+
+
+    function setMintNFTAddress(address account) external onlyOwner {
+        mintNFTAddress = account;
+    }
+
+    function setLpAddress(address _lpAddress) external onlyOwner {
+        lpAddress = _lpAddress;
+    }
+    function wrapEth(uint256 _value) public {
+        IWETH(bnbTokenAddress).deposit{value: _value}();
+    }
+
+
+    struct ChildInfo {
+        address child;
+        uint256 sale;
+    }
+    
+/*     function getInviterChildInfo(address account) public view returns (ChildInfo[] memory) {
+        uint256 len = inviterChildList[account].length();
+        ChildInfo[] memory result = new ChildInfo[](len);
+
+        for (uint256 i = 0; i < len; i++) {
+            address child = inviterChildList[account].at(i);
+            uint256 sale = directTeamSales[child];
+
+            result[i] = ChildInfo({
+                child: child,
+                sale: sale
+            });
+        }
+
+        return result;
+    } */
+
+    function setMaxAmount(uint256 amount) external onlyOwner {
+        maxAmount = amount;
+    }
+    function setInnerAddress(address _innerAddress) external onlyOwner {
+        innerAddress = _innerAddress;
+    }
+    function setMinAmount(uint256 amount) external onlyOwner {
+        minAmount = amount;
+    }
+    function setSellRate(uint256 _sellRate) external onlyOwner {
+        sellRate = _sellRate;
+    }
+
+    function setTriggerInterval(uint256 _tigger) external onlyOwner {
+        TRIGGER_INTERVAL = _tigger;
+    }
+
+    function setBurnRate(uint256[] calldata _burn) external onlyOwner {
+        delete burnRate; 
+        for (uint i = 0; i < _burn.length; i++) {
+            burnRate.push(_burn[i]);
+        }
+    }
+}

@@ -2,9 +2,6 @@
 pragma solidity ^0.8.10;
 /*
 
-import "forge-std/Test.sol";
-import "./interface.sol";
-
 /**
  * ##Author: @haveashib
  * 
@@ -18,14 +15,28 @@ import "./interface.sol";
  * Type Vulnerable : Fee on Token Transfer Bug / etc
  * 
  * Root Cause : 
+1. Vulnerability name
+2. Protocol affected
+3. Root cause
+4. Broken invariant
+5. Attack path (step-by-step)
+6. Minimal PoC
+7. Detection heuristics
+8. Prevention / mitigation
+9. Variants in the wild
  * 
  * ##Analysis
  * Post-mortem : https://www.google.com/
  * Twitter Guy : https://www.google.com/
  */
-
+ 
 
 /*
+
+import "forge-std/Test.sol";
+import "./interface.sol";
+
+
 contract ContractTest is Test {
     IUSDC constant USDC = IUSDC(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IUSDT constant USDT = IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
