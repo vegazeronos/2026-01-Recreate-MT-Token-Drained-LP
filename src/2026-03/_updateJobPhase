@@ -1,0 +1,67 @@
+function _updateJobPhase(uint256 jobId, ACPTypes.JobPhase newPhase, bool isApproved) internal {
+    // jobID, phase 4 ==> completed, isApproved true
+        require(address(jobManager) != address(0), "Job manager not set");
+        
+        // Get current job details
+        ACPTypes.Job memory job = jobManager.getJob(jobId);
+        require(
+            _msgSender() == job.client || 
+            _msgSender() == job.provider ||
+            _msgSender() == job.evaluator ||
+            hasRole(ADMIN_ROLE, _msgSender()),
+            "Not authorized to update phase"
+        );
+
+        // no update if job is already completed
+        if(newPhase == ACPTypes.JobPhase.COMPLETED && job.phase == ACPTypes.JobPhase.COMPLETED) {
+            return;
+        }
+
+        ACPTypes.JobPhase oldPhase = job.phase; // evaluated
+        // Handle phase transition logic
+        if (isApproved && oldPhase == ACPTypes.JobPhase.NEGOTIATION && newPhase == ACPTypes.JobPhase.TRANSACTION) {
+            require(_isERC20(address(job.jobPaymentToken)), "Invalid payment token");
+            // Transfer budget to escrow when moving to transaction phase
+            if (job.budget > 0) {
+                ACPTypes.X402PaymentDetail memory x402PaymentDetail = jobManager.getX402PaymentDetails(jobId);
+                if (x402PaymentDetail.isX402) {
+                    require(x402PaymentDetail.isBudgetReceived, "Budget not received, cannot proceed to transaction phase");
+                } else {
+                    job.jobPaymentToken.safeTransferFrom(job.client, address(paymentManager), job.budget);
+                }
+                // Set escrow details in payment manager
+                if (address(paymentManager) != address(0)) {
+                    paymentManager.setEscrowDetails(job.id, job.budget, address(job.jobPaymentToken));
+                }
+            }
+        } 
+
+        if (job.phase == ACPTypes.JobPhase.EVALUATION && newPhase == ACPTypes.JobPhase.COMPLETED) {
+            if (isApproved) {
+                IJobManager(jobManager).updateJobPhase(jobId, ACPTypes.JobPhase.COMPLETED);
+            } else {
+                 IJobManager(jobManager).updateJobPhase(jobId, ACPTypes.JobPhase.REJECTED);
+            }
+        } else if (job.phase ==  ACPTypes.JobPhase.REQUEST && !isApproved) {
+
+             IJobManager(jobManager).updateJobPhase(jobId,  ACPTypes.JobPhase.REJECTED);
+        } else if (uint8(newPhase) > uint8(job.phase) && !(job.phase < ACPTypes.JobPhase.TRANSACTION && newPhase >= ACPTypes.JobPhase.COMPLETED)) {
+
+            if (isApproved) {
+                 IJobManager(jobManager).updateJobPhase(jobId, ACPTypes.JobPhase(newPhase));
+            }
+        }
+
+        ACPTypes.JobPhase actualPhase = jobManager.getJob(jobId).phase; // this one should be updated ==> completed
+        if (
+            (oldPhase >= ACPTypes.JobPhase.TRANSACTION && oldPhase <= ACPTypes.JobPhase.EVALUATION) && // this one is EVALUATION
+            (actualPhase == ACPTypes.JobPhase.COMPLETED || actualPhase == ACPTypes.JobPhase.REJECTED) // this one is COMPLETED
+        ) {
+            if (actualPhase == ACPTypes.JobPhase.REJECTED) {
+                _claimRefund(jobId);
+            } else {
+                _claimBudget(jobId); // if completed then go to this claimBudget(jobId)
+            }
+        }
+
+    }
