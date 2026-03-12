@@ -3,27 +3,26 @@ pragma solidity ^0.8.10;
 
 /**
  * ##Author                         : @haveashib
- * 
+ *
  * ##KeyInfo
  * Total Lost                       : ~999M US$
  * Attacker                         : 0xcafebabe
  * Attack Contract                  : 0xdeadbeef
  * Vulnerable Contract              : 0xdeadbeef
  * Attack Tx                        : 0x123456789
- * 
- * ##Root Cause : 
+ *
+ * ##Root Cause :
  * 1. Vulnerability name            :
  * 2. Protocol affected             :
  * 3. Root cause                    :
  * 4. Broken invariant              :
  * 5. Attack path (step-by-step)    :
  * 6. Prevention / mitigation       :
- * 
+ *
  * ##Analysis
  * Post-mortem : https://www.google.com/
  * Twitter Guy : https://www.google.com/
-*/
- 
+ */
 
 /*
 
@@ -36,7 +35,7 @@ uint256 constant FORK_BLOCK = 42832267 - 1;
 address constant EOA_ATTACKER = 0x79265e89FeAf7E971DEc75db1432795e6bd4b466;
 
 contract ContractTest is Test {
-    
+
     function setUp() public {
         vm.createSelectFork("base", FORK_BLOCK);
 
@@ -46,7 +45,7 @@ contract ContractTest is Test {
         logBalances("[START]", EOA_ATTACKER);
         logBalances("[FINISH]", EOA_ATTACKER);
     }
-    
+
     function testExploit() public {
         //vm.startPrank(alice);
         //vm.stopPrank();
