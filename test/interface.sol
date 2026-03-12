@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
+
 /**
  * listed interface
  * IMorpho
@@ -9,6 +11,7 @@ pragma solidity ^0.8.10;
  * IAAVE_V3
  * IWETH
  * IUNI_ROUTER_V3
+ * IBalancer
 */
 
 interface IMorpho {
@@ -57,4 +60,26 @@ interface IUNI_ROUTER_V3{
 interface IWETH{
     function withdraw(uint256 amount) external;
     function balanceOf(address account) external returns(uint256);
+    function decimals() external returns(uint256);
+    function deposit() external payable;
+    function transfer(address dst, uint wad) external returns (bool);
+    function approve(address guy, uint wad) external returns (bool);
+}
+
+
+interface IFlashLoanRecipient {
+    function receiveFlashLoan(
+        IERC20[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory feeAmounts,
+        bytes memory userData
+    ) external;
+}
+interface IBalancerVault{
+    function flashLoan(
+        IFlashLoanRecipient recipient,
+        IERC20[] memory tokens,
+        uint256[] memory amounts,
+        bytes memory userData
+    ) external;
 }

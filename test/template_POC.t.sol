@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
-/*
 
 /**
  * ##Author                         : @haveashib
  * 
- * ##KeyInfo - Total Lost           : ~999M US$
+ * ##KeyInfo
+ * Total Lost                       : ~999M US$
  * Attacker                         : 0xcafebabe
  * Attack Contract                  : 0xdeadbeef
  * Vulnerable Contract              : 0xdeadbeef
  * Attack Tx                        : 0x123456789
- * Type Vulnerability               : Reentrancy / ...
  * 
  * ##Root Cause : 
  * 1. Vulnerability name            :
