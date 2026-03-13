@@ -33,6 +33,7 @@ import "../../interface.sol"; // <-- often used interface stored here
 uint256 constant FORK_BLOCK = 42832267 - 1;
 
 address constant EOA_ATTACKER = 0x79265e89FeAf7E971DEc75db1432795e6bd4b466;
+address constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
 contract ContractTest is Test {
 
@@ -55,7 +56,7 @@ contract ContractTest is Test {
 
     function logBalances(string memory tag, string memory name, address recipient) internal{
         console2.log("------------------------------------------------------------------------");
-        emit log_named_decimal_uint(string.concat(tag," ", name ," USDC Balances"), USDC.balanceOf(recipient), USDC.decimals());
+        emit log_named_decimal_uint(string.concat(tag," ", name ," ETH Balances"), recipient.balance, USDC.decimals());
         console2.log("------------------------------------------------------------------------");
     }
 }
