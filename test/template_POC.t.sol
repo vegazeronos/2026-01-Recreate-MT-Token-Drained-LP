@@ -43,12 +43,11 @@ contract ContractTest is Test {
 
         //label
         vm.label(EOA_ATTACKER, "EOA Attacker");
-
-        logBalances("[START ]","EOA ATTACK", EOA_ATTACKER);
-        logBalances("[FINISH]","EOA ATTACK", EOA_ATTACKER);
     }
 
     function testExploit() public {
+        logBalances("[START ]","EOA ATTACK", EOA_ATTACKER);
+        logBalances("[FINISH]","EOA ATTACK", EOA_ATTACKER);
     }
 
     // INTERNAL FUNCTION
