@@ -23,13 +23,109 @@ Recreate a POC from SARE / Sareon exploit, which happened on BSC.
 
 - Protocol affected             : [SARE / Sareon](https://bscscan.com/address/0x1356062E82a940A98ff7172bA1093e206b775015)
 
-- Root cause                    : TODO — confirm from contract source and post-mortem.
+- Root cause                    : ClaimReward is easily manipulateable.
 
-  From the POC logic: the attacker registers a referrer address, then repeatedly deploys disposable `AttackHelper` contracts (29 iterations via `CREATE2`) — each one approves USDT, registers with the attacker as referrer, and calls `BuyToken()`. This inflates the attacker's referral/sponsor reward balance inside the Sareon contract. The attacker then calls `claimUSDTRewards()` to drain the accumulated reward.
+The Reward mechanism is so easy to manipulate, malicious actor can accumulate easily from the referral that the malicious Actor create it themselves.
+Malicious Actor just need to `Sareon::register()` their own contract (let say Contract A) with someone referral. To get the referral reward, Malicious Actor need contract to Register and Buy Sare Token with Contract A as a referral.
 
-- Broken invariant              : TODO — confirm from contract source.
+```javascript
+function register(address _referrerAddress) external nonReentrant {
+    require(!isUserExists(_msgSender()), "User Exists!");
+    require(isUserExists(_referrerAddress), "Referrer not Exists!");
 
-  Likely: referral rewards must not be claimable beyond the protocol's actual USDT reserve, or a single address should not be able to accumulate unbounded rewards through self-referral loops.
+    users[_msgSender()].userId = lastUserId;
+    idToAddress[lastUserId] = _msgSender();
+    users[_msgSender()].downlinereferral=new address[](0);
+@>  users[_referrerAddress].downlinereferral.push(_msgSender());
+    users[_referrerAddress].totalDirect +=0;
+    .
+    .
+    .
+}
+```
+
+After register, it must `BuyToken` to make referral gain the rewards
+```javascript
+function BuyToken (uint256 buyAmount) external  nonReentrant{
+    .
+    .
+    .
+    buyId++;
+    buyRecord[buyId].user_address = _msgSender();
+    buyRecord[buyId].usdt_amt = buyAmount;
+    buyRecord[buyId].token_to_user = userToken;
+    buyRecord[buyId].token_rate = token_rate; 
+@>  checkranks(_msgSender());
+    .
+    .
+    .
+}
+```
+
+and here is the vulnerable code, which make referrer (Contract A) gain lots of rewards
+```javascript
+function checkranks(address _user) internal   
+{
+    uint256 totalDeposit=users[_user].totalDeposit+users[_user].totalBooster;
+    if(users[_user].poolStatus==0 && totalDeposit>=1000*1e18)
+    {
+        users[_user].poolStatus=1;
+        address currentReferrer = users[_user].referrer;
+        users[currentReferrer].activeDirect +=1;
+        address currentReferrer2 = users[_user].referrer;
+        users[currentReferrer2].secondPoolDirect +=1;
+@>      if(users[currentReferrer].poolStatus==1 && users[currentReferrer].activeDirect>=10 && users[currentReferrer].cpool==0 )
+        {
+@>          uint256 rewardAmt=600*1e18;
+@>          users[currentReferrer].UIncomes.availableAmtUSDT +=rewardAmt;
+            emit userIncome(currentReferrer,_msgSender(),rewardAmt,1,1,'REWARD INCOME');
+        }
+    }
+}
+```
+
+
+The malicious Actor gain the referral rewards as from tenth referral registered.. Here is the proof
+```javascript
+  on nonce:  1  the reward on address is  0
+  on nonce:  2  the reward on address is  0
+  on nonce:  3  the reward on address is  0
+  on nonce:  4  the reward on address is  0
+  on nonce:  5  the reward on address is  0
+  on nonce:  6  the reward on address is  0
+  on nonce:  7  the reward on address is  0
+  on nonce:  8  the reward on address is  0
+  on nonce:  9  the reward on address is  0
+  on nonce:  10  the reward on address is  600000000000000000000
+  on nonce:  11  the reward on address is  1200000000000000000000
+  on nonce:  12  the reward on address is  1800000000000000000000
+  on nonce:  13  the reward on address is  2400000000000000000000
+  on nonce:  14  the reward on address is  3000000000000000000000
+  on nonce:  15  the reward on address is  3600000000000000000000
+  on nonce:  16  the reward on address is  4200000000000000000000
+  on nonce:  17  the reward on address is  4800000000000000000000
+  on nonce:  18  the reward on address is  5400000000000000000000
+  on nonce:  19  the reward on address is  6000000000000000000000
+  on nonce:  20  the reward on address is  6600000000000000000000
+  on nonce:  21  the reward on address is  7200000000000000000000
+  on nonce:  22  the reward on address is  7800000000000000000000
+  on nonce:  23  the reward on address is  8400000000000000000000
+  on nonce:  24  the reward on address is  9000000000000000000000
+  on nonce:  25  the reward on address is  9600000000000000000000
+  on nonce:  26  the reward on address is  10200000000000000000000
+  on nonce:  27  the reward on address is  10800000000000000000000
+  on nonce:  28  the reward on address is  11400000000000000000000
+  on nonce:  29  the reward on address is  12000000000000000000000
+```
+
+as you can see above, from the tenth address, Contract A gain a Reward 600000000000000000000 --> 600 USDT, which will compound from the 11th and so on.
+
+Malicious Actor stop at 29th because SARE didnt have any USDT left.
+
+
+
+
+- Broken invariant              : Total Claimable Reward for User > Total Reward Stored on Contract
 
 - Attack path (step-by-step)    :
   1. Swap 0.3 BNB → USDT via PancakeSwap Router v2
@@ -37,7 +133,7 @@ Recreate a POC from SARE / Sareon exploit, which happened on BSC.
   3. `SARE.idToAddress(1)` to get the referrer address
   4. `SARE.register(referrer)` — attacker registers under referrer
   5. `SARE.BuyToken(1e18)` — initial buy to set up attacker's account
-  6. Loop 30 times via `CREATE2`:
+  6. Loop 29 times via `CREATE2`:
      - Deploy fresh `AttackHelper` contract
      - Transfer `1e18` USDT to helper
      - Helper calls `approve` + `register(attacker)` + `BuyToken(1e18)`
@@ -45,9 +141,7 @@ Recreate a POC from SARE / Sareon exploit, which happened on BSC.
   7. `SARE.getUserIncome(attacker)` to read accumulated reward
   8. `SARE.claimUSDTRewards(rewardAmount - 1)` — drain the USDT reward
 
-- Prevention / mitigation       : TODO — confirm from root cause.
-
-  Likely: cap referral rewards per address per block, or track and limit self-referral loops. Rate-limiting `BuyToken` calls from freshly deployed contracts would also reduce attack surface.
+- Prevention / mitigation       : Make a new logic for referral that are not so easy to accumulate. Maybe with time accumulate is better rather than this.
 
 
 ## Analysis
