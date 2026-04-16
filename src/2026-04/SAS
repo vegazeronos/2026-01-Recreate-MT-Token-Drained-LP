@@ -1,0 +1,661 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+// 导入OpenZeppelin标准库：ERC20代币、所有权管理、重入保护
+import "@openzeppelin/contracts@4.9.3/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts@4.9.3/access/Ownable.sol";
+import "@openzeppelin/contracts@4.9.3/security/ReentrancyGuard.sol";
+
+// PancakeSwap V2路由核心接口（仅保留用到的函数）
+interface IUniswapV2Router02 {
+    function factory() external pure returns (address); // 工厂合约地址
+    function WETH() external pure returns (address); // WBNB地址
+    // 支持手续费代币的：代币兑换ETH（BNB）
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external;
+}
+
+// PancakeSwap LP池接口（仅保留用到的函数）
+interface IUniswapV2Pair {
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast); // 获取储备量
+    function token0() external view returns (address); // 代币0地址
+    function token1() external view returns (address); // 代币1地址
+    function balanceOf(address owner) external view returns (uint256); // 查询余额
+    function sync() external; // 同步储备量（燃烧后必须调用）
+}
+
+// SAS主合约：继承ERC20、所有权、重入保护
+contract SAS is ERC20, Ownable, ReentrancyGuard {
+    // ==================== 权限配置 ====================
+    address public setAdmin; // 二级管理员地址（负责参数配置）
+    modifier onlySetAdmin() {
+        require(msg.sender == setAdmin, "Only setAdmin"); // 仅二级管理员可调用
+        _;
+    }
+    mapping(address => bool) public bindAdmins;
+
+    // 新增：仅授权绑定管理员可调用
+    modifier onlyBindAdmin() {
+        require(bindAdmins[msg.sender], "Not bind admin");
+        _;
+    }
+    // ==================== 【新增】防机器人（合约攻击）核心配置 ====================
+    bool public antiBotEnabled = true; // 防bot总开关（默认开启）
+    bool public forbidContractTrade = true; // 禁止合约地址交易（默认开启，防机器人）
+    mapping(address => bool) public botWhitelist; // 防bot白名单（放行必要合约）
+    // ==================== 功能总开关 ====================
+    bool public buyEnabled = false; // 买入开关（默认关闭）
+    bool public lpEnabled = false; // 添加流动性开关（默认关闭）
+    bool public feeEnabled = true; // 手续费开关（默认开启）
+    bool public sellEnabled = true; // 卖出开关（默认开启）
+    bool public allUserSellEnabled = false; // 全局用户卖出开关
+
+    // ==================== 手续费基础配置 ====================
+    uint256 public  FEE_BPS = 500; // 买入手续费：5%（基点，10000=100%）
+    uint256 public  FEE_DIVISOR = 10000; // 手续费除数
+    uint256 public SELL_FEE_BPS = 500;   // 卖出手续费：5%（可修改，新增）
+
+    // ==================== 白名单映射 ====================
+    mapping(address => bool) public whitelist; // 全局白名单（免手续费、无限制）
+    mapping(address => bool) public buyWhitelist; // 买入白名单
+    mapping(address => bool) public lpWhitelist; // 添加流动性白名单
+    mapping(address => bool) public sellWhitelist; // 卖出白名单
+
+    // ==================== 核心合约地址 ====================
+    address public stakeLPContract; // LP质押合约地址
+    uint256 public totalSupplyCap; // 代币总供应量上限
+
+    // ==================== 上下级绑定逻辑 ====================
+    mapping(address => address) public userParent; // 用户→上级地址
+    mapping(address => bool) public automatedMarketMakerPairs; // 标记LP池地址（交易对）
+    mapping(address => mapping(address => bool)) public hasTransferredOneSAS; // 记录：A是否给B转过人1SAS
+    address public immutable deployer; // 部署者地址（不可修改）
+
+    uint256 public BIND_AMOUNT = 1 * 10**18; // 绑定第一步：转账1SAS
+    uint256 public BIND_REVERSE_AMOUNT = 0.5 * 10**18; // 绑定第二步：转回0.5SAS完成绑定
+
+    // ==================== PancakeSwap核心地址 ====================
+    address public pancakeSwapRouter; // 路由合约地址
+    address public wbnb; // WBNB地址
+    address public pancakeSwapPair; // SAS-WBNB交易对（LP池）地址
+
+    // ==================== 燃烧机制配置 ====================
+    address public blackHole; // 黑洞地址（销毁代币）
+    address public rewardAddress; // 奖励分配地址
+    uint256 public burnInterval = 60; // 定时燃烧间隔（秒，默认60秒）
+    uint256 public toRwAmount; // 累计发放至奖励地址的SAS总数量（统计总奖励发放）
+    uint256 public sellBurn; // 待燃烧的代币数量（卖出累计）
+    uint256 public toMintReward; // 待Mint给奖励地址的SAS数量（燃烧后待发放奖励）
+    uint256 public lastBurnTimestamp; // 最后一次燃烧时间戳
+    uint256 public baseBurnBps = 20; // 基础燃烧比例（基点）
+    uint256 public currentBurnBps = 20; // 当前燃烧比例（基点）
+    uint256 public lpBaseValue; // LP池初始价值（BNB）
+    bool public isLPBaseValueRecorded; // 是否已记录LP初始价值
+    uint256 public BPS_DIVISOR = 10000; // 比例除数
+
+    // 燃烧分配比例
+    uint256 public burnToBlackHoleRatio = 90; // 燃烧到黑洞比例（%）
+    uint256 public rewardRatio = 10; // 分配到奖励池比例（%）
+    uint256 public constant RATIO_STEP = 5; // 比例调整步长（%）
+    uint256 public constant RATIO_CAP = 50; // 比例下限/上限（%）
+
+    // ==================== 自动卖出配置 ====================
+    uint256 public minSellAmount = 1e18; // 最小卖出数量（1SAS）
+    uint256 public sellSlippageBps = 50; // 卖出滑点（0.5%）
+
+    // ==================== 事件定义（全功能上链可查） ====================
+    event ParentBound(address indexed user, address indexed parent); // 绑定上下级
+    event TotalSupplyCapUpdated(uint256 oldValue, uint256 newValue); // 修改总供应量上限
+    event BuyEnabledUpdated(bool oldValue, bool newValue); // 修改买入开关
+    event LpEnabledUpdated(bool oldValue, bool newValue); // 修改流动性开关
+    event FeeEnabledUpdated(bool oldValue, bool newValue); // 修改手续费开关
+    event BuyWhitelistUpdated(address indexed user, bool isWhitelisted); // 修改买入白名单
+    event LpWhitelistUpdated(address indexed user, bool isWhitelisted); // 修改流动性白名单
+    event WhitelistUpdated(address indexed user, bool isWhitelisted); // 修改全局白名单
+    event PancakeSwapPairSet(address indexed oldPair, address indexed newPair); // 设置交易对
+    event PancakeSwapRouterSet(address indexed oldRouter, address indexed newRouter); // 设置路由
+    event WBNBSet(address indexed oldWBNB, address indexed newWBNB); // 设置WBNB
+    event StakeLPContractSet(address indexed oldContract, address indexed newContract); // 设置质押合约
+    event SetAdminUpdated(address indexed oldAdmin, address indexed newAdmin); // 修改二级管理员
+    event RewardAddressUpdated(address indexed oldAddr, address indexed newAddr); // 修改奖励地址
+    event BurnRatioUpdated(uint256 oldBurnRatio, uint256 newBurnRatio, uint256 oldRewardRatio, uint256 newRewardRatio); // 修改燃烧分配比例
+    event LPBaseValueRecorded(uint256 baseValueBNB); // 记录LP初始价值
+    event LPBaseValueUpdated(uint256 oldValue, uint256 newValue); // 更新LP初始价值
+    event SASDistributed(uint256 totalAmount, uint256 toBlackHole, uint256 toReward, uint256 burnRatio, uint256 rewardRatio); // 代币分配（燃烧+奖励）
+    event LPValueDoubled(uint256 newBaseValue, uint256 newBurnBps, uint256 newBurnRatio, uint256 newRewardRatio); // LP价值翻倍触发调整
+    event BurnBasisPointsUpdated(uint256 oldValue, uint256 newValue); // 修改燃烧比例
+    event TimedBurnTriggered(uint256 timestamp, uint256 totalBurnAmount); // 触发定时燃烧
+    event BurnIntervalUpdated(uint256 oldInterval, uint256 newInterval); // 修改燃烧间隔
+    event BaseBurnBpsUpdated(uint256 oldBps, uint256 newBps); // 修改基础燃烧比例
+    event BuyFeeCollected(address indexed buyer, uint256 amount, uint256 feeAmount, uint256 toBlackHole, uint256 toReward); // 收取买入手续费
+    event BurnedFromPair(uint256 indexed timestamp, uint256 amount, uint256 pairBalanceBefore, uint256 pairBalanceAfter); // 从交易对燃烧代币
+    event SpecificAmountBurnedFromPair(address indexed caller, uint256 amount, uint256 pairBalanceBefore, uint256 pairBalanceAfter); // 手动指定数量燃烧
+    event SellEnabledUpdated(bool oldValue, bool newValue); // 修改卖出开关
+    event SellWhitelistUpdated(address indexed user, bool isWhitelisted); // 修改卖出白名单
+    event MinSellAmountUpdated(uint256 oldValue, uint256 newValue); // 修改最小卖出量
+    event SellSlippageUpdated(uint256 oldValue, uint256 newValue); // 修改卖出滑点
+    event AutoSellExecuted(address indexed seller, uint256 sasAmount, uint256 bnbReceived, uint256 timestamp); // 自动卖出执行成功
+    event RewardDistributed(address indexed rewardAddress, uint256 receivedAmount); // 新增：记录奖励地址到账SAS数量
+
+    // ==================== 构造函数：初始化合约 ====================
+    constructor() ERC20("SAS Token", "SAS") Ownable() {
+        uint256 chainId;
+        assembly { chainId := chainid() } // 获取当前链ID
+        // 自动匹配BSC主网/测试网的路由和WBNB地址
+        if (chainId == 56) { // BSC主网
+            pancakeSwapRouter = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+            wbnb = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+        } else { // BSC测试网
+            pancakeSwapRouter = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
+            wbnb = 0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd;
+        }
+        totalSupplyCap = 210_000_000 * 10**decimals(); // 总供应量上限：2.1亿
+        blackHole = address(0xdead); // 黑洞地址
+        deployer = msg.sender; // 记录部署者
+        lastBurnTimestamp = block.timestamp; // 初始化燃烧时间
+        userParent[deployer] = address(0xdead); // 部署者无上级
+        rewardAddress = msg.sender; // 奖励地址默认部署者
+        setAdmin = msg.sender; // 二级管理员默认部署者
+        _mint(msg.sender, totalSupplyCap); //  mint全部供应量到部署者
+    }
+
+    // ==================== 内部函数：从交易对燃烧代币 ====================
+    function _burnFromPair(uint256 amount) internal {
+        require(pancakeSwapPair != address(0), "Pair not set"); // 校验交易对已设置
+        require(amount > 0, "Amount >0"); // 校验数量>0
+        uint256 pairBalance = balanceOf(pancakeSwapPair); // 查询交易对余额
+        require(pairBalance >= amount, "Insufficient"); // 校验余额足够
+        _burn(pancakeSwapPair, amount); // 燃烧代币
+        IUniswapV2Pair(pancakeSwapPair).sync(); // 同步交易对储备量（必须调用）
+        emit BurnedFromPair(block.timestamp, amount, pairBalance, pairBalance - amount);
+    }
+
+    // ==================== 二级管理员：手动指定数量从交易对燃烧 ====================
+    function burnSpecificAmountFromPair(uint256 amount) external onlySetAdmin {
+        require(pancakeSwapPair != address(0), "Pair not set");
+        uint256 pairBalance = balanceOf(pancakeSwapPair);
+        require(pairBalance >= amount, "Insufficient");
+        _burnFromPair(amount);
+        emit SpecificAmountBurnedFromPair(msg.sender, amount, pairBalance, pairBalance - amount);
+    }
+
+    // ==================== 管理员：修改二级管理员 ====================
+    function setSetAdmin(address _newSetAdmin) external onlyOwner {
+        require(_newSetAdmin != address(0), "Zero address");
+        emit SetAdminUpdated(setAdmin, _newSetAdmin);
+        setAdmin = _newSetAdmin;
+    }
+
+    // ========== Owner设置/取消 绑定管理员权限 ==========
+    function setBindAdmin(address _admin, bool _status) external onlySetAdmin {
+        require(_admin != address(0), "Zero address");
+        bindAdmins[_admin] = _status;
+    }
+
+    // ==================== 【新增】二级管理员：防机器人配置 ====================
+    // 设置防bot参数（开关+禁止合约交易）
+    function setAntiBotSettings(bool _enabled, bool _forbidContract) external onlySetAdmin {
+        antiBotEnabled = _enabled;
+        forbidContractTrade = _forbidContract;
+    }
+
+    // 设置防bot白名单（放行必要合约：stakeLP/Router/Pair）
+    function setBotWhitelist(address _contractAddr, bool _isWhitelisted) external onlySetAdmin {
+        require(_contractAddr != address(0), "Zero address");
+        botWhitelist[_contractAddr] = _isWhitelisted;
+    }
+
+    // 【内部】防bot校验核心（拦截恶意合约）
+    function _antiBotCheck(address _sender) internal view {
+        // 防bot关闭 → 跳过校验
+        if(!antiBotEnabled) return;
+        
+        // 放行名单（绝对不拦截，保证业务正常）
+        if(
+            whitelist[_sender] ||        // 全局白名单用户
+            _sender == stakeLPContract ||// LP质押合约（核心！必须放行）
+            _sender == pancakeSwapRouter || // 交易路由
+            _sender == pancakeSwapPair ||   // LP交易对
+            botWhitelist[_sender] ||    // 防bot白名单合约
+            _sender == owner() ||        // 主管理员
+            _sender == setAdmin          // 二级管理员
+        ) {
+            return;
+        }
+
+        // 禁止合约交易 → 拦截所有非放行的合约地址（机器人/夹子全是合约）
+        if(forbidContractTrade) {
+            require(!_isContract(_sender), "AntiBot: Contract trade forbidden");
+        }
+    }
+    // ==================== 管理员：开启/关闭手续费 ====================
+    function setFeeEnabled(bool _enabled) external onlySetAdmin {
+        emit FeeEnabledUpdated(feeEnabled, _enabled);
+        feeEnabled = _enabled;
+    }
+    // 新增：管理员设置全局用户卖出权限
+    function setAllUserSellEnabled(bool _enabled) external onlySetAdmin {
+        allUserSellEnabled = _enabled;
+    }
+
+    // ==================== 管理员：修改全局白名单 ====================
+    function setWhitelist(address user, bool isWhitelisted) external onlySetAdmin {
+        require(user != address(0), "Invalid");
+        emit WhitelistUpdated(user, isWhitelisted);
+        whitelist[user] = isWhitelisted;
+    }
+
+    // ==================== 管理员：开启/关闭卖出 ====================
+    function setSellEnabled(bool _enabled) external onlySetAdmin {
+        emit SellEnabledUpdated(sellEnabled, _enabled);
+        sellEnabled = _enabled;
+    }
+
+    // ==================== 管理员：修改卖出白名单 ====================
+    function setSellWhitelist(address user, bool isWhitelisted) external onlySetAdmin {
+        require(user != address(0), "Invalid");
+        emit SellWhitelistUpdated(user, isWhitelisted);
+        sellWhitelist[user] = isWhitelisted;
+    }
+
+    // ==================== 二级管理员：修改最小卖出数量 ====================
+    function setMinSellAmount(uint256 _newAmount) external onlySetAdmin {
+        require(_newAmount > 0, ">0");
+        emit MinSellAmountUpdated(minSellAmount, _newAmount);
+        minSellAmount = _newAmount;
+    }
+
+    // ==================== 二级管理员：修改卖出滑点 ====================
+    function setSellSlippageBps(uint256 _newSlippage) external onlySetAdmin {
+        require(_newSlippage <= 1000, "Max 10%"); // 最大滑点10%
+        emit SellSlippageUpdated(sellSlippageBps, _newSlippage);
+        sellSlippageBps = _newSlippage;
+    }
+
+    // ==================== 二级管理员：修改定时燃烧间隔 ====================
+    function setBurnInterval(uint256 _newInterval) external onlySetAdmin {
+        require(_newInterval > 0, ">0");
+        emit BurnIntervalUpdated(burnInterval, _newInterval);
+        burnInterval = _newInterval;
+    }
+
+    // ==================== 二级管理员：修改基础燃烧比例 ====================
+    function setBaseBurnBps(uint256 _newBps) external onlySetAdmin {
+        require(_newBps > 0, ">0");
+        emit BaseBurnBpsUpdated(baseBurnBps, _newBps);
+        if(currentBurnBps < _newBps) currentBurnBps = _newBps;
+    }
+
+    // ==================== 二级管理员：修改黑洞地址 ====================
+    function setBlackHole(address _newBlackHole) external onlySetAdmin {
+        require(_newBlackHole != address(0), "Zero address"); // 禁止零地址
+        blackHole = _newBlackHole;
+    }
+    // ==================== 二级管理员：修改奖励地址 ====================
+    function setRewardAddress(address _newRewardAddr) external onlySetAdmin {
+        require(_newRewardAddr != address(0), "Zero");
+        emit RewardAddressUpdated(rewardAddress, _newRewardAddr);
+        rewardAddress = _newRewardAddr;
+    }
+
+    // ==================== 二级管理员：修改当前燃烧比例 ====================
+    function setBurnBasisPoints(uint256 _newBps) external onlySetAdmin {
+        require(_newBps > 0, ">0");
+        emit BurnBasisPointsUpdated(currentBurnBps, _newBps);
+        currentBurnBps = _newBps;
+    }
+
+    // ==================== 管理员：设置LP质押合约地址 ====================
+    function setStakeLPContract(address _stakeLP) external onlySetAdmin {
+        emit StakeLPContractSet(stakeLPContract, _stakeLP);
+        stakeLPContract = _stakeLP;
+    }
+
+    // ==================== 管理员：修改PancakeSwap路由 ====================
+    function setPancakeSwapRouter(address _router) external onlySetAdmin {
+        require(_router != address(0), "Zero");
+        emit PancakeSwapRouterSet(pancakeSwapRouter, _router);
+        pancakeSwapRouter = _router;
+    }
+
+    // ==================== 管理员：修改WBNB地址 ====================
+    function setWBNB(address _wbnb) external onlySetAdmin {
+        require(_wbnb != address(0), "Zero");
+        emit WBNBSet(wbnb, _wbnb);
+        wbnb = _wbnb;
+    }
+
+    // ==================== 管理员：设置SAS-WBNB交易对地址 ====================
+    function setPancakeSwapPair(address _pair) external onlySetAdmin {
+        require(_pair != address(0), "Zero");
+        emit PancakeSwapPairSet(pancakeSwapPair, _pair);
+        pancakeSwapPair = _pair;
+        automatedMarketMakerPairs[_pair] = true; // 标记为LP交易对
+    }
+
+    // ==================== 管理员：开启/关闭买入 ====================
+    function setBuyEnabled(bool _enabled) external onlySetAdmin {
+        emit BuyEnabledUpdated(buyEnabled, _enabled);
+        buyEnabled = _enabled;
+    }
+
+    // ==================== 管理员：开启/关闭添加流动性 ====================
+    function setLpEnabled(bool _enabled) external onlySetAdmin {
+        emit LpEnabledUpdated(lpEnabled, _enabled);
+        lpEnabled = _enabled;
+    }
+
+    // ==================== 管理员：修改买入白名单 ====================
+    function setBuyWhitelist(address user, bool isWhitelisted) external onlySetAdmin {
+        require(user != address(0), "Invalid");
+        emit BuyWhitelistUpdated(user, isWhitelisted);
+        buyWhitelist[user] = isWhitelisted;
+    }
+
+    // ==================== 管理员：修改流动性白名单 ====================
+    function setLpWhitelist(address user, bool isWhitelisted) external onlySetAdmin {
+        require(user != address(0), "Invalid");
+        emit LpWhitelistUpdated(user, isWhitelisted);
+        lpWhitelist[user] = isWhitelisted;
+    }
+
+    // ==================== 管理员：修改总供应量上限 ====================
+    function setTotalSupplyCap(uint256 _newTotalSupplyCap) external onlySetAdmin {
+        require(_newTotalSupplyCap >= totalSupply(), "Cap < supply"); // 上限不能低于当前供应量
+        emit TotalSupplyCapUpdated(totalSupplyCap, _newTotalSupplyCap);
+        totalSupplyCap = _newTotalSupplyCap;
+    }
+
+    // ==================== 管理员：手动记录LP初始价值 ====================
+    function recordInitialLPValue() external onlySetAdmin {
+        _autoRecordLPBaseValue();
+    }
+
+    // ==================== 内部函数：自动记录LP池初始价值（BNB） ====================
+    function _autoRecordLPBaseValue() internal {
+        require(pancakeSwapPair != address(0) && pancakeSwapRouter != address(0) && wbnb != address(0), "Not set");
+        uint256 oldValue = lpBaseValue;
+        uint256 newValue = _calculateLPValue();
+        lpBaseValue = newValue;
+        isLPBaseValueRecorded = true;
+        if(oldValue == 0) emit LPBaseValueRecorded(newValue);
+        else emit LPBaseValueUpdated(oldValue, newValue);
+    }
+
+    // ==================== 查询函数：获取当前LP池价值（BNB） ====================
+    function getCurrentLPValue() external view returns (uint256) {
+        require(pancakeSwapPair != address(0) && pancakeSwapRouter != address(0) && wbnb != address(0), "Not set");
+        return _calculateLPValue();
+    }
+
+    // ==================== 内部函数：计算LP池总价值（BNB） ====================
+    function _calculateLPValue() internal view returns (uint256) {
+        IUniswapV2Pair pair = IUniswapV2Pair(pancakeSwapPair);
+        (uint112 r0, uint112 r1,) = pair.getReserves();
+        // 返回：SAS对应BNB储备量×2（LP池总价值）
+        return pair.token0() == address(this) ? uint256(r1)*2 : uint256(r0)*2;
+    }
+
+// ==================== 内部函数：执行定时销毁+Mint奖励（合规版：先Burn Pair，再Mint奖励） ==================== 
+function _executeTimedBurn() internal returns (uint256) {
+    require(rewardAddress != address(0), "Reward not set");
+    require(pancakeSwapPair != address(0), "Pair not set");
+    
+    // 1. 获取交易对SAS余额
+    uint256 pairBalance = balanceOf(pancakeSwapPair);
+    if(pairBalance == 0) return 0;
+    
+    // 2. 计算总燃烧数量（从Pair销毁）
+    uint256 burnAmt = (pairBalance * currentBurnBps) / BPS_DIVISOR;
+    if(burnAmt == 0) return 0;
+    
+    // 3. 计算分配比例：黑洞销毁量 + 奖励地址量
+    uint256 toBH = (burnAmt * burnToBlackHoleRatio) / 100;
+    uint256 toRW = (burnAmt * rewardRatio) / 100;
+    
+    // 4. ✅ 核心：先合法销毁交易对里的SAS（调用你原生的燃烧函数）
+    sellBurn = sellBurn + burnAmt;
+    
+    // 5. ✅ 核心：Mint对应奖励数量给奖励地址（校验总供应量上限，防止超发）
+    if(toRW > 0) {
+        toMintReward = toMintReward + toRW;
+        toRwAmount += toRW;
+        emit RewardDistributed(rewardAddress, toRW);
+    }
+    
+    // 6. 触发分配事件
+    emit SASDistributed(burnAmt, toBH, toRW, burnToBlackHoleRatio, rewardRatio);
+    return burnAmt;
+}
+
+// ==================== 内部函数：检查LP价值+执行定时燃烧（加交易锁，修复Swap报错） ====================
+function _checkLPValueAndBurn() internal {
+    // 🔴 核心修复：如果是PancakeSwap Router/Pair在调用（正在卖出/买入），直接退出，不执行任何逻辑
+    if(msg.sender == pancakeSwapRouter || automatedMarketMakerPairs[msg.sender]) return;
+
+    // 基础地址校验
+    if(!isLPBaseValueRecorded || pancakeSwapPair == address(0) || pancakeSwapRouter == address(0) || wbnb == address(0)) return;
+    // 到达燃烧间隔：执行定时燃烧
+    if(block.timestamp >= lastBurnTimestamp + burnInterval) {
+        uint256 amt = _executeTimedBurn();
+        emit TimedBurnTriggered(block.timestamp, amt);
+        lastBurnTimestamp = block.timestamp;
+    }
+    // 检查LP价值是否翻倍
+    uint256 curLP = _calculateLPValue();
+    if(curLP >= lpBaseValue * 2) {
+        uint256 newBps = currentBurnBps + 20; // 燃烧比例+20基点
+        currentBurnBps = newBps;
+        uint256 newBR = burnToBlackHoleRatio;
+        uint256 newRR = rewardRatio;
+        // 调整分配比例：逐步减少燃烧、增加奖励
+        if(burnToBlackHoleRatio > RATIO_CAP) {
+            newBR = burnToBlackHoleRatio - RATIO_STEP;
+            newRR = rewardRatio + RATIO_STEP;
+            if(newBR < RATIO_CAP) { newBR = RATIO_CAP; newRR = RATIO_CAP; }
+            burnToBlackHoleRatio = newBR;
+            rewardRatio = newRR;
+            emit BurnRatioUpdated(burnToBlackHoleRatio+RATIO_STEP, newBR, rewardRatio-RATIO_STEP, newRR);
+        }
+        lpBaseValue = curLP; // 更新LP基础价值
+        emit LPValueDoubled(curLP, newBps, newBR, newRR);
+        emit BurnBasisPointsUpdated(currentBurnBps-20, newBps);
+    }
+}
+
+    // ========== 核心函数：自动卖出（用户转账到交易对=自动卖出） ==========
+    function _autoSell(address seller, uint256 amount) internal nonReentrant returns (uint256) {
+        require(sellEnabled, "Sell disabled");
+        require(amount >= minSellAmount, "Below min");
+        require(pancakeSwapRouter != address(0) && wbnb != address(0), "Router/WBNB not set");
+        require(allUserSellEnabled || sellWhitelist[seller] || whitelist[seller], "Not in sell whitelist");
+        require(balanceOf(seller) >= amount, "Insufficient balance");
+
+        // ✅ 新增：卖出扣税（非白名单才扣，100%进奖励地址）
+        uint256 sellFee = 0;
+        uint256 swapAmount = amount;
+        if (feeEnabled && !whitelist[seller]) {
+            sellFee = (amount * SELL_FEE_BPS) / FEE_DIVISOR;
+            swapAmount = amount - sellFee;
+            uint256 fRW = sellFee; // 奖励地址全额接收
+            if (fRW > 0) _transfer(seller, rewardAddress, fRW);
+            toRwAmount = toRwAmount + fRW;
+        }
+
+        // 扣税后金额拿去兑换
+        _transfer(seller, address(this), swapAmount);
+        _approve(address(this), pancakeSwapRouter, swapAmount);
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = wbnb;
+
+        uint256 minOut = _getMinOut(swapAmount);
+        uint256 before = seller.balance;
+
+        IUniswapV2Router02(pancakeSwapRouter).swapExactTokensForETHSupportingFeeOnTransferTokens(
+            swapAmount, minOut, path, seller, block.timestamp + 600
+        );
+
+        uint256 bnbGot = seller.balance - before;
+        emit AutoSellExecuted(seller, amount, bnbGot, block.timestamp);
+        return bnbGot;
+    }
+
+    // ============ 应急提取函数 ============
+    function claimStuckToken(address token) external onlySetAdmin {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        if (bal > 0) IERC20(token).transfer(msg.sender, bal);
+    }
+
+    function claimStuckETH() external onlySetAdmin {
+        uint256 bal = address(this).balance;
+        if (bal > 0) {
+            (bool success, ) = payable(msg.sender).call{value: bal}("");
+            require(success, "ETH transfer failed");
+        }
+    }
+    // ==================== 内部函数：计算卖出最小接收BNB（滑点保护） ====================
+    function _getMinOut(uint256 amt) internal view returns (uint256) {
+        IUniswapV2Pair p = IUniswapV2Pair(pancakeSwapPair);
+        (uint112 r0, uint112 r1,) = p.getReserves();
+        (uint256 rSAS, uint256 rBNB) = p.token0() == address(this) ? (uint256(r0), uint256(r1)) : (uint256(r1), uint256(r0));
+        uint256 out = (amt * rBNB) / (rSAS + amt); // 理论输出BNB
+        return out * (10000 - sellSlippageBps) / 10000; // 扣除滑点
+    }
+
+    // ==================== 内部函数：判断是否为买入（从交易对→用户） ====================
+    function _isBuy(address from, address to) internal view returns (bool) {
+        return (from == pancakeSwapRouter || from == pancakeSwapPair) && !_isContract(to);
+    }
+
+    // ==================== 内部函数：判断是否为合约地址 ====================
+    function _isContract(address a) internal view returns (bool) {
+        uint256 s; assembly { s := extcodesize(a) }
+        return s > 0;
+    }
+    // ==================== 二级管理员：单独执行 - 从Pair销毁 + Mint奖励给地址 ====================
+    function executePendingBurnAndMint() external onlySetAdmin {
+        // 1. 基础校验
+        require(pancakeSwapPair != address(0), "Pair not set");
+        require(rewardAddress != address(0), "Reward address error");
+        uint256 pendingBurn = sellBurn;
+        uint256 pendingMint = toMintReward;
+        require(pendingBurn > 0 || pendingMint > 0, "No pending task");
+
+        // 2. ✅ 执行：从交易对销毁SAS
+        if(pendingBurn > 0) {
+            _burnFromPair(pendingBurn);
+            sellBurn = 0; // 清零待销毁
+        }
+
+        // 3. ✅ 执行：Mint奖励给奖励地址
+        if(pendingMint > 0) {
+            _mint(rewardAddress, pendingMint);
+            toMintReward = 0; // 清零待Mint
+        }
+    }
+// ========== 核心重写：ERC20转账函数（集成买入手续费、自动卖出、绑定、燃烧） ==========
+function transfer(address to, uint256 amount) public override returns (bool) {
+        // 【新增】仅加这一行 → 防机器人校验（不影响原有逻辑）
+    _antiBotCheck(_msgSender());
+    require(to != address(0) && amount > 0, "Invalid transfer");
+    address from = _msgSender();
+
+    // 核心逻辑：转账到交易对 = 自动卖出
+    if(to == pancakeSwapPair) {
+        _autoSell(from, amount);
+@>      sellBurn = sellBurn + amount; // 累计待燃烧数量
+
+        return true;
+    }
+
+    bool isBuy = _isBuy(from, to); // 是否为买入 
+    // isBuy False
+    bool isLP = automatedMarketMakerPairs[to] && !_isContract(from); // 是否为添加流动性
+    // isLP false
+
+    // 买入校验：开关+白名单
+    if(isBuy) {
+        require(buyEnabled || from == stakeLPContract || to == stakeLPContract, "Buy disabled");
+        require(buyWhitelist[from] || buyWhitelist[to], "Buy WL");
+    }
+
+    // 添加流动性校验：开关+白名单
+    if(isLP) {
+        require(lpEnabled || from == stakeLPContract || to == stakeLPContract, "LP disabled");
+        require(lpWhitelist[from] || lpWhitelist[to], "LP WL");
+        if(!isLPBaseValueRecorded) _autoRecordLPBaseValue(); // 首次添加流动性：记录初始价值
+    }
+
+    // 处理买入手续费
+    uint256 tAmt = amount;
+    uint256 fee = 0;
+    if(feeEnabled && !whitelist[from] && !whitelist[to] && isBuy) {
+        fee = (amount * FEE_BPS) / FEE_DIVISOR; // 计算5%手续费
+        tAmt = amount - fee;
+        require(balanceOf(from) >= amount, "No balance");
+        // 手续费分配：黑洞+奖励地址
+        uint256 fBH = (fee * burnToBlackHoleRatio) / 100;
+        uint256 fRW = (fee * rewardRatio) / 100;
+        _transfer(from, to, tAmt);
+        if(fBH > 0) _transfer(from, blackHole, fBH);
+        if(fRW > 0) _transfer(from, rewardAddress, fRW);
+        emit BuyFeeCollected(to, amount, fee, fBH, fRW);
+
+        return true;
+    }
+    // 普通转账逻辑
+    require(balanceOf(from) >= tAmt, "No balance");
+    _transfer(from, to, tAmt);
+    // 卖出后：执行燃烧
+@>  if(sellBurn > 0 ){
+        _burnFromPair(sellBurn);
+        sellBurn = 0;
+    }
+    // 上下级绑定逻辑
+    if(tAmt == BIND_AMOUNT) hasTransferredOneSAS[from][to] = true; // 第一步：转1SAS
+    // 第二步：转0.5SAS→完成绑定（无上级、对方已给我转过1SAS、非部署者）
+    if(tAmt == BIND_REVERSE_AMOUNT && userParent[from] == address(0) && hasTransferredOneSAS[to][from] && from != deployer) {
+        userParent[from] = to;
+        emit ParentBound(from, to);
+    }
+     _checkLPValueAndBurn();
+    return true;
+}
+
+    // ========== 用户主动绑定上级（复用原有 userParent） ==========
+    function bindParent(address _parent) external {
+        // 仅未绑定用户可绑定
+        require(userParent[msg.sender] == address(0), "Already have parent");
+        // 不能绑定自己
+        require(_parent != msg.sender, "Cannot bind self");
+
+        // 上级必须有效（部署者 / 已有上级的用户）
+        require(_parent == deployer || userParent[_parent] != address(0), "Parent not valid");
+
+        // 直接绑定到原有 parent 映射
+        userParent[msg.sender] = _parent;
+        // 复用你原有绑定事件
+        emit ParentBound(msg.sender, _parent);
+    }
+
+    // ========== 授权管理员强制帮用户绑定上级（权限：白名单地址=true） ==========
+    function adminBindParent(address _user, address _parent) external onlyBindAdmin {
+        require(_user != address(0) && _parent != address(0), "Zero address");
+        require(_user != _parent, "Cannot bind self");
+        require(_parent != address(0), "Invalid parent");
+        require(userParent[_user] == address(0), "User already bound");
+
+        // 绑定到原有 parent
+        userParent[_user] = _parent;
+        emit ParentBound(_user, _parent);
+    }
+    // 接收BNB（备用）
+    receive() external payable {}
+}
